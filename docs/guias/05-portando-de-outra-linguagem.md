@@ -84,3 +84,6 @@ O porte do xadrez, para ter uma ideia: programa, gráficos, tabelas e livro de a
 `$4000` a `$831F`; tabuleiro em `$0300`; quadros da busca em `$0400`; listas de lances para 5
 plies (128 lances cada) em `$A000-$B8FF` (ele usa só uma página de hi-res). Ficaram livres cerca
 de 15 KB.
+
+Para começar um porte assim com o Claude Code, veja a primeira mensagem pronta em
+[11. Começando um porte](11-primeiras-mensagens.md#115-um-programa-em-outra-linguagem-javascript).

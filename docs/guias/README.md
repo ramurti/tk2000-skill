@@ -26,6 +26,7 @@ funcionou e os números por trás de cada decisão.
 | [7. Trabalhando com um agente de IA](07-trabalhando-com-um-agente-de-ia.md) | Você porta com o Claude Code ou um agente parecido |
 | [8. Portando um jogo de Apple II](08-portando-um-jogo-de-apple-ii.md) | O original é uma imagem de disco de Apple II (`.dsk`) |
 | [10. Curso rápido](10-curso-rapido.md) | **Novo no Claude Code?** Comece aqui: instale tudo e faça um primeiro porte (Seaquest) passo a passo |
+| [11. Começando um porte: a primeira mensagem](11-primeiras-mensagens.md) | Você vai começar um porte: mensagens prontas para um `.dsk`, uma ROM de 2600, um fonte em 6502 ou JavaScript |
 | [9. A skill do Claude Code](09-a-skill-do-claude-code.md) | Você quer que o Claude Code faça o porte com todo este conhecimento e as ferramentas |
 
 A referência completa por trás destes guias é a skill do Claude Code [`tk2000-port`](../../plugin/skills/tk2000-port/SKILL.md)

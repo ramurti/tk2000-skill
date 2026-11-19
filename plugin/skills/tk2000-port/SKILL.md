@@ -45,6 +45,36 @@ fidelidade pode ser provada.
   emulados, tira capturas de tela e despeja a memória. É assim que você testa sem pedir ao dono
   do projeto para jogar.
 
+## A primeira sessão (o começo)
+
+A primeira mensagem do dono do projeto normalmente diz qual é o original e pede um plano (veja
+`docs/guias/11-primeiras-mensagens.md` no repositório, com as mensagens que as pessoas recebem).
+Faça isto antes de propor qualquer coisa; depois apresente o plano e pare:
+
+1. **Confira as ferramentas** (cc65, ambiente Python com py65 e Pillow, o código do emulador,
+   SDL2; `dasm` para fontes de 2600) e monte o projeto: `reference/` com o original intocado,
+   `src/`, `tools/`, `build/`, um README, git.
+2. **Estude o original, conforme o tipo**:
+   - **Disco de Apple II**: liste e extraia os arquivos (`dos33.py`), descubra como o jogo dá
+     boot e carrega, dê boot nele no Apple II do py65 (`a2boot.py`) e tire capturas de tela; meça
+     o que ele usa (as duas páginas de alta resolução? memória acima de $C000? o language card?) e
+     diga se cabe no TK2000 (`apple-ii.md` §16; um jogo que precise de mais de ~48 KB de código e
+     dados pode não caber).
+   - **ROM de Atari 2600**: tamanho e troca de bancos, um disassembly que remonte idêntico
+     (`dis2600.py`), o original rodando no `vcs.py` com capturas do início, do jogo e do fim de
+     jogo; quanto de cada quadro é kernel e quanto é lógica (`atari-2600.md`).
+   - **Fonte 6502 ou disassembly comentado**: qual montador, se monta, e se gera o binário
+     original byte a byte (se não houver binário, diga: o porte então não pode ser comprovado
+     contra ele); como ele usa o hardware da máquina original.
+   - **Outra linguagem**: tamanho, o que precisa e o TK2000 não tem (memória, velocidade, casas
+     decimais, profundidade de recursão, gráficos, mouse), e como a versão do TK2000 vai ser
+     conferida com o original rodando no computador (`a-partir-do-fonte.md` §14).
+3. **Escreva o plano para o dono do projeto**, em palavras simples: as etapas (§3 abaixo)
+   adaptadas a este jogo, o que cada uma entrega e como é testada, os riscos encontrados
+   (memória, velocidade, hardware que falta) e a lista de escolhas que ele fará (disposição da
+   tela, cada cor, cada som, controles, tela de título), cada uma para ser mostrada como opções.
+   Coloque-o no README e espere o OK do dono do projeto.
+
 ## 3. Fluxo de trabalho
 
 0. **Primeiro o plano, depois a execução passo a passo.** Antes de escrever código, estude o

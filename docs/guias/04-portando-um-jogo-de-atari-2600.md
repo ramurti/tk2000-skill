@@ -104,3 +104,7 @@ partir dos valores de registradores do original, um efeito de cada vez.
 8. Colisões, placar, barra de status, estados do jogo.
 9. Som, um efeito de cada vez.
 10. Telas de introdução e a fita final.
+
+Para começar o seu próprio porte de 2600 com o Claude Code, veja a primeira mensagem pronta em
+[11. Começando um porte](11-primeiras-mensagens.md#113-um-cartucho-de-atari-2600-rom) (ou
+[11.4](11-primeiras-mensagens.md#114-assembly-6502-fonte-ou-disassembly-comentado) se você tem o fonte).

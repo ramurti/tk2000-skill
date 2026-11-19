@@ -121,6 +121,10 @@ próprio histórico.
 Siga o [curso rápido](10-curso-rapido.md) a partir do passo 5: ele leva você pelo porte do
 Seaquest (Atari 2600), com a primeira mensagem pronta para colar e o que esperar em cada etapa.
 
+Se o seu original é outro (um disco `.dsk` de Apple II, uma ROM de Atari 2600, um fonte em
+assembly 6502 ou um programa em JavaScript), a primeira mensagem pronta para cada caso está em
+[11. Começando um porte](11-primeiras-mensagens.md).
+
 ## O que faz um porte ficar bom
 
 Duas coisas, e as duas dependem de você:

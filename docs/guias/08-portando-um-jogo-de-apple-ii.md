@@ -52,3 +52,6 @@ efeitos sonoros que a versão de Apple nunca teve (golpes, morte, chefe), o tema
 partir de um arquivo MIDI, as escadas no fim de cada andar, uma tecla de "nunca morrer" para
 explorar todos os andares, a letra do fliperama antes de cada partida no lugar de uma calibração
 de joystick de que o TK2000 não precisa, e um disco que dá boot em 2 segundos.
+
+Para começar o seu próprio porte de Apple II com o Claude Code, veja a primeira mensagem pronta em
+[11. Começando um porte](11-primeiras-mensagens.md#112-um-disco-de-apple-ii-dsk).

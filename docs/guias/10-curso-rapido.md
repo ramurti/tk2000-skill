@@ -226,3 +226,6 @@ autor do kit: a skill fica melhor para o próximo porte.
 - [4. Portes de Atari 2600](04-portando-um-jogo-de-atari-2600.md), [8. Portes de Apple II](08-portando-um-jogo-de-apple-ii.md).
 - [7. Trabalhando com um agente de IA que programa](07-trabalhando-com-um-agente-de-ia.md): o que
   funcionou e o que deu errado nos primeiros portes.
+
+Para outros originais (um `.dsk` de Apple II, um fonte em 6502, JavaScript), a primeira mensagem está em
+[11. Começando um porte](11-primeiras-mensagens.md).
