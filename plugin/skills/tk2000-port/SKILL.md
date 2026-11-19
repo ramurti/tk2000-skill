@@ -53,7 +53,7 @@ Faça isto antes de propor qualquer coisa; depois apresente o plano e pare:
 
 1. **Confira as ferramentas** (cc65, ambiente Python com py65 e Pillow, o código do emulador,
    SDL2; `dasm` para fontes de 2600) e monte o projeto: `reference/` com o original intocado,
-   `src/`, `tools/`, `build/`, um README, git.
+   `src/`, `tools/`, `build/`, um README, git; ofereça um repositório privado no GitHub (§4).
 2. **Estude o original, conforme o tipo**:
    - **Disco de Apple II**: liste e extraia os arquivos (`dos33.py`), descubra como o jogo dá
      boot e carrega, dê boot nele no Apple II do py65 (`a2boot.py`) e tire capturas de tela; meça
@@ -140,8 +140,28 @@ Faça isto antes de propor qualquer coisa; depois apresente o plano e pare:
   desalinhado); melhorias de bom gosto são bem-vindas quando pedidas ou propostas; nada de
   simplificações visuais.
 - **Privado e local**: os portes contêm ROMs/discos comerciais: só em repositórios privados,
-  nunca adicionados ao repositório público do emulador. `dist/*.wav` fica local (nunca vai para
-  commit).
+  nunca adicionados ao repositório público do emulador. O WAV de uma fita é grande (~10 MB):
+  pergunte antes de colocá-lo num commit.
+- **Um repositório privado no GitHub para o projeto** (ofereça na primeira sessão; crie só quando
+  o dono do projeto concordar, e faça commit/push só quando ele pedir):
+  1. `gh auth status`: o `gh` está instalado e logado, e com qual(is) conta(s)? Se não estiver:
+     instale o `gh` (macOS `brew install gh`, Debian/Ubuntu `apt install gh`) e peça ao dono do
+     projeto para rodar ele mesmo `gh auth login` (abre o navegador; nunca lide com a senha ou o
+     token dele).
+  2. **Qual conta**: se houver mais de uma logada (por exemplo, uma do trabalho), pergunte qual é
+     a deste projeto; nunca coloque um porte pessoal numa conta de trabalho ou de organização.
+     Não mude a identidade global do git nem faça `gh auth switch` se outra conta for a ativa:
+     configure a identidade só no repositório (`git config user.name`, `git config user.email`,
+     com o nome e o e-mail que o dono do projeto informar) e, quando a conta não for a ativa, um
+     credential helper do repositório:
+     `git config credential.helper '!f() { test "$1" = get && echo username=CONTA && echo "password=$(gh auth token --user CONTA)"; }; f'`.
+  3. `git init -b main`, um `.gitignore` (`build/`, `.venv/`, `__pycache__/`, `.DS_Store`), um
+     primeiro commit e depois `gh repo create CONTA/NOME --private --source . --remote origin --push`
+     (com `GH_TOKEN=$(gh auth token --user CONTA)` na frente quando CONTA não for a ativa). Se o
+     `gh` configurou um remote SSH e o SSH é de outra conta, troque o remote para
+     `https://github.com/CONTA/NOME.git`.
+  4. Confira: `gh repo view CONTA/NOME --json visibility` diz `PRIVATE`, e `git status -sb` mostra
+     o branch em dia. Nunca torne público o repositório de um porte (a ROM ou o disco está nele).
 - **Meça, não chute**: controles pela memória (os bits de direção do jogo), não por capturas de
   tela; som pelos cliques do alto-falante registrados; velocidade por tiques por segundo.
 - Relate com clareza o que foi verificado e o que não foi.

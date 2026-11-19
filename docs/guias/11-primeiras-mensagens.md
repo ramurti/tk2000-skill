@@ -172,3 +172,31 @@ guia [5](05-portando-de-outra-linguagem.md) explica o método.
   [curso rápido, 5.3](10-curso-rapido.md#53-o-seu-trabalho-mais-importante-escolher-as-cores-e-os-sons).
 - No fim de uma sessão: "atualize o README com o que fizemos, o que falta e as minhas decisões".
   No dia seguinte: "continue o porte, leia o README primeiro".
+
+## 11.7 Uma cópia privada no GitHub
+
+Guarde o projeto também no GitHub, num repositório **privado** (só você vê): se o computador
+quebrar, nada se perde, e todo passo que você aprovou pode ser recuperado. Privado, porque o
+projeto contém a ROM ou o disco do original, que você não pode compartilhar.
+
+1. **Uma conta no GitHub**: crie em https://github.com/signup (gratuita). Se você já tem uma do
+   trabalho, crie uma pessoal para os seus portes: não guarde projetos pessoais numa conta de
+   trabalho.
+2. **Entre pelo terminal**, uma vez (no terminal do VS Code):
+
+   ```sh
+   brew install gh            # macOS; no Debian/Ubuntu: sudo apt install gh
+   gh auth login              # escolha GitHub.com, HTTPS, e entre pelo navegador
+   ```
+
+   Você digita a senha só no navegador, nunca na conversa com o Claude.
+3. **Peça ao Claude**, no projeto, algo como:
+
+   > Crie um repositório privado no GitHub para este projeto, na minha conta <seu usuário do
+   > GitHub>, com o meu nome e e-mail <nome, e-mail> nos commits deste projeto, faça o primeiro
+   > commit e envie (push). Depois confira que o repositório é privado.
+
+   Se você tem mais de uma conta do GitHub neste computador (uma do trabalho, por exemplo), diga
+   qual é a dos portes: o Claude configura a identidade só neste projeto e não mexe nas outras.
+4. Daí em diante, quando um passo funcionar: "faça o commit e o push". O Claude só faz commit e
+   push quando você pede.

@@ -125,6 +125,13 @@ Se o seu original é outro (um disco `.dsk` de Apple II, uma ROM de Atari 2600, 
 assembly 6502 ou um programa em JavaScript), a primeira mensagem pronta para cada caso está em
 [11. Começando um porte](11-primeiras-mensagens.md).
 
+## Passo 7. Guarde o projeto no GitHub (privado)
+
+Quando o porte começar a andar, guarde uma cópia no GitHub, num repositório **privado**: crie uma
+conta pessoal em https://github.com/signup e siga o
+[guia 11.7](11-primeiras-mensagens.md#117-uma-cópia-privada-no-github). O Claude cria o
+repositório e envia os passos aprovados quando você pedir.
+
 ## O que faz um porte ficar bom
 
 Duas coisas, e as duas dependem de você:

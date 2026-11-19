@@ -211,6 +211,8 @@ as decisões que eu tomei."*
   um passo ainda não testado e sem commit sai barato.
 - Peça **commits no git** quando um passo funcionar ("faça o commit disto"), para poder sempre
   voltar atrás.
+- Guarde uma cópia no GitHub, num repositório **privado** (veja [11.7](11-primeiras-mensagens.md#117-uma-cópia-privada-no-github)):
+  o computador pode quebrar, e o porte tem a ROM ou o disco do original, que não pode ser público.
 - Se a conversa ficar longa ou confusa, use `/clear` e recomece com "continue o porte do
   Seaquest, leia o README".
 
