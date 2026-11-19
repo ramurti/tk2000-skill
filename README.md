@@ -4,6 +4,7 @@ Uma skill do [Claude Code](https://claude.com/claude-code), guias e ferramentas 
 para o **TK2000**, o micro brasileiro da Microdigital (1984). Tudo isso nasceu de portes reais
 feitos com o Claude Code: River Raid, Tennis, Pole Position e Enduro (Atari 2600), Kung Fu Master
 (Apple II, a partir de um `.dsk`) e um jogo de xadrez (a partir de JavaScript).
+Os portes foram feitos com o Claude Code usando o modelo **Claude Opus 5.5**, de 27/10 a 19/11/2026.
 
 **Nunca usou o Claude nem o VS Code?** Comece por
 [0. Para quem está começando do zero](docs/guias/00-para-iniciantes.md): conta no Claude,
