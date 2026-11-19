@@ -47,6 +47,13 @@ fidelidade pode ser provada.
 
 ## 3. Fluxo de trabalho
 
+0. **Primeiro o plano, depois a execução passo a passo.** Antes de escrever código, estude o
+   original e escreva um plano para o dono do projeto: as etapas (abaixo), o que cada uma
+   entrega, como será testada e quais escolhas ele fará pelo caminho (disposição da tela, cada
+   cor, cada som, controles, tela de título). Mostre o plano, ajuste-o com o dono do projeto e
+   só então comece. Depois, faça um passo de cada vez: construa, teste você mesmo, relate com
+   capturas de tela ou gravações e pare até o dono do projeto experimentar. Mantenha o plano no
+   README do projeto, marcando o que já foi feito, para que uma sessão futura possa continuá-lo.
 1. **Torne o original reproduzível**: um fonte ou disassembly que remonta exatamente os mesmos
    bytes, e uma simulação em py65 da máquina original rodando-o (`scripts/atari/vcs.py`,
    `scripts/apple/a2boot.py`).
@@ -76,6 +83,15 @@ fidelidade pode ser provada.
   qualquer decisão visual ou de som, gere as opções como arquivos que o dono do projeto possa
   abrir e comparar, rotule-as A, B, C..., e diga em uma linha cada o que muda e quanto custa
   (fps, memória, tempo de carga). Depois espere a escolha; não escolha pelo dono do projeto.
+  - **É isso que faz um porte bom.** O TK2000 tem 6 cores, com limites a cada 7 pixels, e um
+    alto-falante de 1 bit: quase toda cor e todo som do original precisam ser aproximados, e a
+    primeira aproximação raramente é a melhor. Um porte em que o agente escolheu sozinho fica
+    com aparência e som piores. Por isso: todo mapeamento de cor (céu, chão, objetos, cada hora
+    do dia ou fase), todo efeito sonoro, a música, a tela de título e os controles passam por
+    aqui; ofereça de 2 a 4 opções de verdade (compromissos diferentes, não variações de uma
+    mesma ideia), diga qual você escolheria e por quê, e mesmo assim deixe o dono do projeto
+    decidir. Se ele disser que tanto faz, pergunte de novo pelas que se veem ou se ouvem o
+    tempo todo.
   - **Imagens**: o original (captura do simulador) ao lado de cada opção do TK2000, mesmo
     momento, mesma escala (folhas de contato com Pillow; recortes ampliados quando o detalhe é
     pequeno, ex.: as faixas do pôr do sol); também uma versão "TV" borrada quando as cores se

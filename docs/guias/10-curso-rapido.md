@@ -138,42 +138,70 @@ Depois cole algo assim (adapte os caminhos e o sistema):
 > ~/tk2000/emulador-tk2000 e eu jogo no emulador do TK2000 neste computador
 > (macOS / Linux).
 >
-> Sou novo no Claude Code e em portes, então: explique cada passo em poucas linhas antes de
-> fazê-lo, trabalhe em passos pequenos, teste cada passo você mesmo no emulador sem janela e pare
-> depois de cada um para eu experimentar. Antes de escolher cores, a disposição da tela ou sons,
-> mostre opções com prévias na pasta build/ do projeto. Mantenha no projeto um README com o que
-> foi feito e o que vem a seguir.
+> Sou novo no Claude Code e em portes, então: primeiro estude o jogo e me mostre um plano (as
+> etapas, o que cada uma entrega, como você vai testar e quais escolhas eu vou fazer) e espere o
+> meu OK. Depois trabalhe um passo pequeno de cada vez: explique em poucas linhas, teste você
+> mesmo no emulador sem janela e pare depois de cada um para eu experimentar. Nunca escolha
+> cores, disposição da tela ou sons sozinho: para cada um, me mostre de 2 a 4 opções ao lado do
+> original (imagens e arquivos WAV na pasta build/ do projeto), diga quanto cada uma custa e
+> qual você escolheria, e deixe eu escolher. Mantenha no projeto um README com o plano, o que foi
+> feito e o que vem a seguir.
 >
 > Comece conferindo as minhas ferramentas e montando o projeto.
 
-### 5.3 O que acontece em seguida, e o que dizer
+### 5.3 O seu trabalho mais importante: escolher as cores e os sons
+
+O TK2000 tem só 6 cores, com limites a cada 7 pixels, e um alto-falante que só sabe dar
+cliques. Quase nenhuma cor ou som do original existe nele do jeito que é: cada um precisa ser
+aproximado, e sempre há vários jeitos de fazer isso, cada um com seus compromissos (uma cor
+misturada que fica certa numa TV mas listrada de perto, um som mais rico que custa velocidade). A
+primeira tentativa raramente é a melhor. **É aqui que um porte fica bom ou medíocre, e isso
+depende de você**, não do código.
+
+- Para cada cor (céu, chão, objetos, cada fase ou hora do dia), cada efeito sonoro, a música e a
+  tela de título, peça **opções lado a lado com o original** e escolha. O Claude as faz como
+  imagens e arquivos WAV em `build/`; abra, olhe e escute.
+- Veja as imagens no tamanho real e também borradas "como numa TV" (peça as duas): as cores
+  misturadas foram feitas para serem vistas numa TV.
+- Escute os sons ao lado do WAV do original, mais de uma vez, e também no jogo: um som que parece
+  bom sozinho pode cansar depois de dez minutos.
+- Se nenhuma opção estiver boa, diga o que incomoda e peça outras. Se não conseguir decidir entre
+  duas, peça as duas em fitas e jogue um pouco com cada uma.
+- Não tenha pressa aqui: um porte é jogado por anos; uma cor ou um som escolhido às pressas vai
+  incomodar toda vez.
+
+### 5.4 O que acontece em seguida, e o que dizer
 
 Um porte passa por estas etapas. Cada uma leva um ou mais passos; depois de cada passo, o Claude
 para e você testa. Exemplos de mensagens entre aspas.
 
+0. **O plano**: o Claude estuda o jogo e propõe as etapas e as escolhas que você vai fazer. Leia,
+   pergunte o que não entender e dê o OK (ou diga o que mudar).
 1. **Preparação**: as pastas do projeto, um ambiente Python, o emulador de testes sem janela
    compilado.
 2. **O original, reproduzido**: o Claude desmonta o cartucho até ele remontar nos mesmos bytes e
    o roda num pequeno simulador de Atari 2600. Você vai ver capturas de tela do jogo original.
    *"Me mostre capturas de tela do início, do jogo e do game over."*
-3. **O plano**: como o quadro do 2600 vira imagem na tela de 280 × 192 do TK2000 e nas cores dele
+3. **O plano da tela**: como o quadro do 2600 vira imagem na tela de 280 × 192 do TK2000 e nas cores dele
    (o TK2000 tem só preto, branco, verde, azul, ciano e vermelho, com limites a cada 7 pixels).
-   *"Me mostre duas opções de cores para o mar e o submarino, lado a lado."*
+   *"Me mostre opções para o mar e o submarino lado a lado com o original, nítidas e borradas
+   como numa TV."*
 4. **Uma primeira imagem no TK2000**: uma fita que mostra a cena parada. Carregue-a no seu
    emulador: F2 (menu) -> insira a fita `.ct2`, digite `LOADT` e RETURN, aperte F6 (play).
 5. **O jogo rodando**: a lógica original roda e o código do Claude desenha; depois, a velocidade
    (o TK2000 não tem timer, então a velocidade é contada em ciclos da CPU). *"Os tubarões estão
    rápidos demais em comparação com o Atari"* é exatamente o retorno de que ele precisa.
 6. **Controles**: setas e SPACE. *"Dá para atirar com a tecla de ponto também?"*
-7. **Sons, um de cada vez**: o Claude faz prévias em WAV do original e da versão do TK2000.
-   *"O torpedo soa como um clique, dá para ele ser mais longo?"*
+7. **Sons, um de cada vez**: para cada som o Claude faz um WAV do original e duas ou três opções
+   para o TK2000; você escolhe, e depois ele grava o jogo de verdade para confirmar. *"O torpedo
+   soa como um clique, dá para ele ser mais longo?"*
 8. **Tela de título e a fita**: uma imagem de carregamento, uma tela de início, o `.ct2` final, um
    `.wav` para um TK2000 de verdade (toque-o na entrada de cassete) e uma pasta `dist/`.
 
 Ao fim de cada sessão de trabalho: *"Atualize o README com o que fizemos, o que está pendente e
 as decisões que eu tomei."*
 
-### 5.4 Bons hábitos
+### 5.5 Bons hábitos
 
 - **Teste cada versão no seu emulador** e diga o que viu, com precisão: "depois do terceiro
   tubarão, a metade de cima da tela pisca" é melhor que "está com bug". Uma captura de tela é

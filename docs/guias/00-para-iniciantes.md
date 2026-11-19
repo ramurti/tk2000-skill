@@ -121,6 +121,22 @@ próprio histórico.
 Siga o [curso rápido](10-curso-rapido.md) a partir do passo 5: ele leva você pelo porte do
 Seaquest (Atari 2600), com a primeira mensagem pronta para colar e o que esperar em cada etapa.
 
+## O que faz um porte ficar bom
+
+Duas coisas, e as duas dependem de você:
+
+1. **Um plano antes de começar.** Peça ao Claude para estudar o jogo e mostrar um plano: as
+   etapas, o que cada uma entrega, como vai ser testada e quais escolhas você vai fazer. Só
+   depois de você concordar ele começa, e trabalha um passo de cada vez, parando para você
+   experimentar.
+2. **Boas escolhas de cores e de sons.** O TK2000 tem só 6 cores e um alto-falante simples:
+   quase nada do jogo original existe nele do mesmo jeito, então cada cor e cada som são uma
+   aproximação, e há sempre mais de uma. Peça sempre **opções lado a lado com o original**
+   (imagens e sons que você abre e compara), olhe e escute com calma, e escolha. Não deixe o
+   Claude decidir sozinho: é aqui que um porte fica bonito ou fica feio. O
+   [curso rápido](10-curso-rapido.md#53-o-seu-trabalho-mais-importante-escolher-as-cores-e-os-sons)
+   explica como fazer isso bem.
+
 ## Dicas para conversar com o Claude
 
 - Fale como falaria com uma pessoa: "o tubarão está rápido demais comparado com o Atari" é ótimo.
