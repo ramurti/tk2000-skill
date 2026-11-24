@@ -16,9 +16,17 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 DSK = os.path.join(ROOT, 'reference', 'Skyfox_1984_Electronic_Arts_cr_Black_Bag.dsk')
 USE = os.path.join(ROOT, 'build', 'use')
 
-# pacote: (trilha, endereço, região do usage.py, medições do usage.py com o pacote na memória)
+# pacote: (trilha, endereço, região do usage.py, medições do usage.py com o pacote na memória);
+# trilha 'res' (tamanho) = código residente, montado pela carga inicial: a referência é a memória
+# logo depois dela (build/study/resident-14s.bin, do estado do AppleWin build/aw/res/snap-14.yaml)
 FLY_A = ['A22', 'A17']
+RES = os.path.join(ROOT, 'build', 'study', 'resident-14s.bin')
 PKGS = {
+    'r08': (('res', 0x200), 0x0800, 'main', FLY_A),
+    't15': (15, 0x0A00, 'main', FLY_A),
+    'r1A': (('res', 0x600), 0x1A00, 'main', FLY_A),
+    'r20': (('res', 0x4000), 0x2000, 'main', FLY_A),
+    'rB0': (('res', 0x1000), 0xB000, 'main', FLY_A),
     't7':  (7, 0x6000, 'main', FLY_A),
     't16': (16, 0x7000, 'main', FLY_A),
     't8':  (8, 0x8000, 'main', FLY_A),
@@ -38,13 +46,19 @@ def package(dsk, t):
     return b''.join(dsk[t * 4096 + (15 - n) * 256:t * 4096 + (16 - n) * 256] for n in range(16))
 
 
-def executed(region, base, runs):
+def source(dsk, t, base):
+    if isinstance(t, tuple):
+        return open(RES, 'rb').read()[base:base + t[1]]
+    return package(dsk, t)
+
+
+def executed(region, base, runs, n=0x1000):
     off = {'main': 0, 'lc1': 0xD000, 'lc2': 0xD000, 'lchi': 0xE000}[region]
     cov = set()
     for r in runs:
         u, _ = pickle.load(open(os.path.join(USE, r + '.pkl'), 'rb'))
         arr = u[region]
-        for a in range(base, base + 0x1000):
+        for a in range(base, base + n):
             if arr[a - off] & X:
                 cov.add(a)
     return cov
@@ -85,17 +99,18 @@ def main():
     os.makedirs(os.path.join(ROOT, 'src', 'dis'), exist_ok=True)
     for nm in names:
         t, base, region, runs = PKGS[nm]
-        data = package(dsk, t)
-        cov = starts(executed(region, base, runs), base, data)
+        data = source(dsk, t, base)
+        cov = starts(executed(region, base, runs, len(data)), base, data)
         disa2.coverage = lambda name, b, n, cov=cov: cov
         lines, ncov, tot = disa2.disassemble(nm, base, data)
-        lines[0] = '; Sky Fox (Electronic Arts, 1984), Apple II: pacote %s, trilha %d em $%04X-$%04X (%s)' % (
-            nm, t, base, base + 0xFFF, region)
+        what = ('residente (memória depois da carga inicial)' if isinstance(t, tuple) else 'trilha %d' % t)
+        lines[0] = '; Sky Fox (Electronic Arts, 1984), Apple II: %s, %s em $%04X-$%04X (%s)' % (
+            nm, what, base, base + len(data) - 1, region)
         lines[1] = '; gerado por tools/dispkg.py: %d instruções que rodaram no voo A (%s), mais %d pelo rastreio estático' % (
             ncov, ', '.join(runs), tot - ncov)
         open(os.path.join(ROOT, 'src', 'dis', nm + '.s'), 'w').write('\n'.join(lines) + '\n')
-        line = '%-4s trilha %2d $%04X %-4s  %4d instruções que rodaram, %4d com o rastreio' % (
-            nm, t, base, region, ncov, tot)
+        line = '%-4s %-8s $%04X %-4s  %4d instruções que rodaram, %4d com o rastreio' % (
+            nm, 'residente' if isinstance(t, tuple) else 'trilha %d' % t, base, region, ncov, tot)
         if chk:
             line += '  remonta: ' + check(nm, base, data)
         print(line)
