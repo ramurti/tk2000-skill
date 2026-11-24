@@ -9,7 +9,10 @@ do disco). Quando um acesso indireto ((zp),y, (zp,x), JMP (ind)), um operando ab
 próprio código (smc) ou um RTS cai nas duas áreas, conta as origens do byte alto. O que roda com o
 motor do disco ligado (as cargas) não conta, e os bytes que a carga grava viram dados novos.
 
-    sftaint.py DISK.dsk SNAP.yaml CICLOS OUT.txt [-j SEG:x=..,y=..,b0=..] [-k SEG:TECLA]
+    sftaint.py DISK.dsk SNAP.yaml CICLOS OUT.txt [-j SEG:x=..,y=..,b0=..] [-k SEG:TECLA] [--lc1]
+
+--lc1: vigia, em vez das duas áreas, as leituras do banco 1 do language card ($D000-$DFFF com o
+banco 1 ligado): de onde vêm os ponteiros para as figuras do banco 1.
 
 Saída: uma linha por origem: tipo, endereço, valor no fim, e quem usou (PC, modo, vezes).
 """
@@ -50,6 +53,11 @@ def main():
     t0 = m.processorCycles
     end = t0 + int(a[2])
     out = a[3]
+    lc1 = '--lc1' in a
+    a = [x for x in a if x != '--lc1']
+    if lc1:
+        global WATCH
+        WATCH = lambda x: 0xD000 <= x < 0xE000 and ap.lc_read and ap.lc_bank == 1   # noqa: E731
     ev = []
     i = 4
     while i < len(a):

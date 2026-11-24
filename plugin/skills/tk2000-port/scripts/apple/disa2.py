@@ -59,11 +59,15 @@ def coverage(name, base, n):
     return cov
 
 
-def disassemble(name, base, data, seeds=(), tk=None):
+def disassemble(name, base, data, seeds=(), tk=None, allow=None):
+    """allow(a): se dado, só aceita instruções cujos bytes todos ele permite (ex.: os buracos da tela)"""
     n = len(data)
     end = base + n
 
     def ins(a):
+        if allow is not None and not all(allow(b) for b in range(a, min(a + 3, end))
+                                         if b == a or LEN[OPS[data[a - base]][1]] > b - a):
+            return None
         op = data[a - base]
         mn, mode = OPS[op]
         ln = LEN[mode]

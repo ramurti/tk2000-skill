@@ -6,7 +6,11 @@ Código = o que rodou com o pacote na memória (marcas de execução do tools/us
 mais o rastreio estático do tools/disa2.py (desvios não tomados, destinos de JSR/JMP dentro do
 pacote). O resto é dado (.byte).
 
-    dispkg.py [--check] [tNN...]        (padrão: todos os pacotes da tabela PKGS)
+    dispkg.py [--check] [--tk] [tNN...]        (padrão: todos os pacotes da tabela PKGS)
+
+--tk: gera a versão do TK2000 (src/tk/NAME.s, build/tk/NAME.bin): o código no endereço do TK2000
+(sfrelocs.reloc: $4000-$5FFF <-> $A000-$BFFF), operandos pelos rótulos, e os bytes de
+sfrelocs.patches (deslocamento de página, bytes altos em tabelas e imediatos).
 """
 import os, pickle, subprocess, sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -29,7 +33,8 @@ PKGS = {
     'r08': (('res', 0x200), 0x0800, 'main', ALL),
     't15': (15, 0x0A00, 'main', ALL),
     'r1A': (('res', 0x600), 0x1A00, 'main', ALL),
-    'r20': (('res', 0x4000), 0x2000, 'main', ALL),
+    'r20': (('res', 0x2000), 0x2000, 'main', ALL),
+    'r40': (('res', 0x2000), 0x4000, 'main', ALL),     # vai para $A000 no TK2000
     'rB0': (('res', 0x1000), 0xB000, 'main', ALL),
     't7':  (7, 0x6000, 'main', ALL),
     't16': (16, 0x7000, 'main', FLY_A + OPEN),
@@ -54,6 +59,9 @@ PKGS = {
     't29': (29, 0xF000, 'lchi', FLY_A + FLY_B + BRIEF),
 }
 X = 4
+SEEDS = {                               # código que não rodou nas medições, achado pelo lockstep
+    't8': [0x800B],                     # lda $227E / jsr $4BF8 (depois da troca do pacote de $A000)
+}
 disa2.NAMES.update({0xC083: 'LCRAM2RW', 0xC08B: 'LCRAM1RW', 0xC089: 'LCROM1W'})
 
 
@@ -94,14 +102,16 @@ def starts(cov, base, data):
     return out
 
 
-def check(name, base, data):
-    src = os.path.join(ROOT, 'src', 'dis', name + '.s')
-    out = os.path.join(ROOT, 'build', 'dis')
+def check(name, base, data, kind='dis'):
+    src = os.path.join(ROOT, 'src', kind, name + '.s')
+    out = os.path.join(ROOT, 'build', kind)
     os.makedirs(out, exist_ok=True)
     o, b = os.path.join(out, name + '.o'), os.path.join(out, name + '.bin')
     subprocess.run(['ca65', src, '-o', o], check=True)
     subprocess.run(['ld65', '-C', os.path.join(ROOT, 'src', 'dis', 'raw.cfg'), o, '-o', b], check=True)
     got = open(b, 'rb').read()
+    if data is None:
+        return '%d bytes' % len(got)
     bad = [k for k in range(max(len(got), len(data))) if k >= len(got) or k >= len(data) or got[k] != data[k]]
     return 'idêntico' if not bad else '%d bytes diferentes, o primeiro em $%04X' % (len(bad), base + bad[0])
 
@@ -109,25 +119,33 @@ def check(name, base, data):
 def main():
     a = sys.argv[1:]
     chk = '--check' in a
+    tk = '--tk' in a
+    kind = 'tk' if tk else 'dis'
+    if tk:
+        import sfrelocs
     names = [x for x in a if not x.startswith('--')] or list(PKGS)
     dsk = open(DSK, 'rb').read()
-    os.makedirs(os.path.join(ROOT, 'src', 'dis'), exist_ok=True)
+    os.makedirs(os.path.join(ROOT, 'src', kind), exist_ok=True)
     for nm in names:
         t, base, region, runs = PKGS[nm]
         data = source(dsk, t, base)
         cov = starts(executed(region, base, runs, len(data)), base, data)
         disa2.coverage = lambda name, b, n, cov=cov: cov
-        lines, ncov, tot = disa2.disassemble(nm, base, data)
+        # nas telas, código só nos buracos (os últimos 8 bytes de cada grupo de 128): o resto é imagem
+        allow = (lambda x: (x & 0x7F) >= 0x78) if nm in ('r20', 'r40') else None
+        lines, ncov, tot = disa2.disassemble(nm, base, data, SEEDS.get(nm, ()), sfrelocs.patches(nm, base, data) if tk else None, allow)
         what = ('residente (memória depois da carga inicial)' if isinstance(t, tuple) else 'trilha %d' % t)
         lines[0] = '; Sky Fox (Electronic Arts, 1984), Apple II: %s, %s em $%04X-$%04X (%s)' % (
             nm, what, base, base + len(data) - 1, region)
         lines[1] = '; gerado por tools/dispkg.py: %d instruções que rodaram no voo (%s), mais %d pelo rastreio estático' % (
             ncov, ', '.join(runs), tot - ncov)
-        open(os.path.join(ROOT, 'src', 'dis', nm + '.s'), 'w').write('\n'.join(lines) + '\n')
+        if tk:
+            lines[0] += ', para o TK2000 (tools/sfrelocs.py)'
+        open(os.path.join(ROOT, 'src', kind, nm + '.s'), 'w').write('\n'.join(lines) + '\n')
         line = '%-4s %-8s $%04X %-4s  %4d instruções que rodaram, %4d com o rastreio' % (
             nm, 'residente' if isinstance(t, tuple) else 'trilha %d' % t, base, region, ncov, tot)
         if chk:
-            line += '  remonta: ' + check(nm, base, data)
+            line += '  remonta: ' + check(nm, base, None if tk else data, kind)
         print(line)
 
 
