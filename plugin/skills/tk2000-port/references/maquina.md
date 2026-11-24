@@ -110,7 +110,10 @@ Consequências:
   esquerda.
 - **Isso é diferente do Apple II** (violeta/verde, azul/laranja, cores de artefato que dependem
   da paridade absoluta da coluna, deslocamento de meio pixel da paleta 1). Os gráficos do Apple
-  II não aparecem com as mesmas cores no TK2000: as cores precisam ser remapeadas.
+  II não aparecem com as mesmas cores no TK2000: as cores precisam ser remapeadas. O verde do
+  Apple sai azul, e o azul sai ciano; para ter verde e azul no TK use os bytes do violeta e do
+  verde do Apple, respectivamente (`apple-ii.md` §9.1). Verde e azul ficam na mesma paleta
+  (0), então podem se encostar no mesmo byte sem franja.
 - Conflito de cor: o bit de paleta vale por byte (7 pixels). Vermelho e ciano precisam da paleta
   1, verde e azul da paleta 0: um pixel vermelho de sprite deixa vermelha a água azul em volta
   (no mesmo byte), e ciano a terra verde. Branco e preto independem da paleta. No River Raid

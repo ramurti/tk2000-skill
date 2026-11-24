@@ -18,6 +18,19 @@ camada** (como a §8.3 para o 2600).
 - As cores são diferentes (§3.2): os mesmos bytes mostram o laranja do Apple como vermelho no
   TK, o azul como ciano, o violeta como verde, o verde como azul. O dono do projeto aceitou a
   arte do jogo do jeito que sai (sem remapear).
+  - **Remapear costuma ser barato** (Sky Fox, nov/2026): o verde do Apple (pixel em
+    coluna ímpar, paleta 0) vira azul no TK2000 porque os pares do TK começam em x par; o azul do
+    Apple (coluna par, paleta 1) vira ciano. Para o TK2000 mostrar a cor certa, troque os bytes
+    de preenchimento: **verde no TK = os bytes do violeta do Apple** (`$55,$2A` na coluna par,
+    ímpar), **azul no TK = os bytes do verde do Apple** (`$2A,$55`), ambos com bit 7 = 0. Como
+    verde e azul estão **na mesma paleta** do TK2000, um chão verde sob um céu azul não tem
+    conflito de cor no horizonte (no Apple eles estão em paletas diferentes). Laranja -> vermelho
+    não precisa de troca (mesma posição, paleta 1). Violeta não existe no TK2000: é uma escolha
+    (vermelho, ciano, azul...). Na prática: ache as constantes/tabelas de preenchimento do jogo
+    (chão, céu, painéis) e troque-as; mostre ao dono do projeto o original, "mesmos bytes" e
+    "bytes trocados" lado a lado antes de escolher. `scripts/apple/recolor.py` refaz uma tela
+    inteira assim (pixel a pixel, paleta de cada byte por maioria) e `tkview.py` desenha as
+    versões lado a lado: servem de prévia, não de implementação.
 - Não há modo texto: as chaves de modo do Apple em `$C050-$C057` (texto/gráfico/misto/página)
   significam outras coisas aqui (`$C050/$C051` = cor/mono, `$C052/$C053/$C056/$C057` = fita).
   Troque-as por NOP e ligue cor ou mono você mesmo; uma tela de texto que o jogo desenha em

@@ -55,4 +55,6 @@ Todos do Kung Fu Master; a ordem abaixo é a ordem do trabalho (`references/appl
 | `mkimage.py` | modelo | Dá partida no disco até o início do jogo, pega a memória e os registradores, coloca a camada do TK2000 por cima, compacta os overlays sob a ROM, grava a imagem da fita |
 | `tk.s` | modelo | A camada de hardware no endereço do antigo carregador: tabela de saltos, carregador de arquivos (descompacta), latch de teclado do Apple a partir da matriz, paddles/botões a partir de teclas, Start |
 | `sfx.s` | modelo | Efeitos sonoros e música ligados a eventos do jogo, guardados sob a ROM |
+| `tkview.py` | genérica | Uma tela hi-res de um despejo de memória como o Apple a mostra e como o TK2000 mostraria os mesmos bytes, lado a lado (Sky Fox) |
+| `recolor.py` | genérica | Reescreve os bytes de uma tela do Apple para o TK2000 mostrar cores parecidas (verde -> verde, azul -> azul; violeta à escolha): prévia de remapeamento de cores (Sky Fox) |
 | `hgr.py` | genérica | Páginas da tela de alta resolução (hi-res) do Apple num despejo de memória, como PNG |
