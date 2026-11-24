@@ -151,6 +151,27 @@ e o AppleWin voou normalmente, o que provou que o defeito era do simulador.
   Use-o para saber o comportamento certo e para comparar a memória (código que o jogo reescreve
   difere por momento: compare páginas que ficam estáveis entre três despejos seguidos).
 
+### 9.4 Lockstep a partir de estados do AppleWin (Sky Fox, nov/2026)
+
+`scripts/apple/sflockstep.py` roda o original e o porte relocado lado a lado a partir de um estado
+salvo do AppleWin (não do boot), com `sfrelocs.py` (a tabela de correções) e `dispkg.py --tk` (as
+unidades na versão TK2000). Aprendido:
+- **Traduza o estado, não só o código**: endereços de retorno na pilha (reconheça pelo JSR antes do
+  endereço apontado), operandos que o jogo já reescreveu, e código que o jogo instalou em tempo de
+  execução (os buracos da tela) também precisam do XOR `$E0`.
+- **Confira o ponteiro da pilha a cada instrução**: um byte de código sobrescrito por um desenho com
+  endereço não relocado aparece primeiro como pilha diferente, não como PC diferente.
+- **A variável de página não é só somada**: o mesmo `$00/$20` serve de índice (`asl a` → `$00/$40`);
+  com `$80` no TK2000, `lsr a` dá o mesmo; dois `adc $20` viram `nop / adc tabela,x`.
+- **Nas áreas de tela, código só nos buracos**: o rastreio estático do desmontador toma bytes de
+  imagem por código e "reloca" figuras (`disa2.disassemble(..., allow=)`).
+- **Figuras podem apontar para dentro de tabelas** (uma "figura" desenhava os bytes da própria tabela de
+  ponteiros): ao relocar a tabela, aponte essa figura para uma cópia dos bytes originais.
+- **Varra o disco pelo padrão, não espere o lockstep**: `lda #hi / sta $31`, `lda #hi / sta operando`,
+  `adc #$20` depois da tabela de linhas: cada padrão achado uma vez costuma ter vários irmãos.
+- Código que não rodou nas medições fica como dado e não é relocado: o lockstep o encontra quando
+  roda; acrescente o endereço como ponto de entrada (`dispkg.SEEDS`).
+
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
 O primeiro porte de Apple II (§9): um disco DOS 3.3 crackeado, o código original rodando sem
