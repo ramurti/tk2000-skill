@@ -50,6 +50,9 @@ Notas:
   - o reset seleciona a ROM
   - se um jogo roda com a RAM selecionada, os vetores de IRQ/NMI/RESET em `$FFFA-$FFFF` vêm da
     RAM
+  - **com a interface de disco encaixada, `$C100-$C1FF` lê sempre a ROM de boot do disco**, mesmo
+    com a RAM selecionada (`CRom::read`: `mSlotRom` antes de `mRamSelected`); a escrita vai para a
+    RAM, mas não dá para lê-la. Um jogo em disco tem `$C200-$FFFF` (15,5K), não 15,75K
   - o Karateka verifica essa RAM ("NAO HA 64K DE MEMORIA" se ela faltar); o fork do emulador a
     implementa
 - Um jogo pode passar para a RAM depois de carregar, para ganhar 16K, mas aí não pode chamar
