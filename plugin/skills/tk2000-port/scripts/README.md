@@ -46,6 +46,8 @@ Todos do Kung Fu Master; a ordem abaixo é a ordem do trabalho (`references/appl
 | `dos33.py` | genérica | Catálogo DOS 3.3 e arquivos binários de um `.dsk` |
 | `a2boot.py` | quase genérica | Um Apple II no py65 (64K, language card, Disk II com nibbles 6-e-2, teclado, paddles, botões) que dá partida no `.dsk`; teclas/joystick programados; registra os arquivos carregados, a E/S usada, os endereços executados por arquivo; retratos da memória |
 | `sfboot.py` | quase genérica | Estudo de um disco **sem catálogo DOS 3.3** (crack ou carregador próprio): dá boot pelo `a2boot.py` e registra as trilhas lidas e quando, a E/S, a memória escrita (RAM principal, os dois bancos de `$D000` e `$E000-$FFFF` do language card), as páginas executadas, capturas das duas páginas hi-res a cada N ciclos; salva e continua de um estado (`-S`/`-L`) (Sky Fox) |
+| `awrun.py` | genérica | Roda um `.dsk` no AppleWin para Linux sem janela (Apple II+ de 64K) com teclas programadas; capturas das duas páginas hi-res, despejos de memória e o WAV do alto-falante ao longo do tempo. A referência de comportamento quando o Apple do py65 diverge (Sky Fox). Precisa do `applewin-key.patch` |
+| `applewin-key.patch` | genérica | Acrescenta `/api/key?code=HEX` ao servidor de depuração do AppleWin para Linux (aperta uma tecla) e o `#include <cstdint>` que falta para o GCC 13 |
 | `disa2.py` | modelo | Disassembly ca65 dos arquivos (código = o executado + rastreio estático), bytes idênticos; `--tk` realocado, `--io` E/S do TK2000 alterada |
 | `ctx.py` | genérica | Disassembly em volta de um endereço |
 | `taint.py`, `candidates.py` | modelo | Rodam o jogo rastreando de onde veio cada byte: quais bytes montam endereços para as áreas que se mudam |

@@ -1,0 +1,42 @@
+diff --git a/source/debugserver/InfoProvider.h b/source/debugserver/InfoProvider.h
+index ca1ddb95..f34489f8 100644
+--- a/source/debugserver/InfoProvider.h
++++ b/source/debugserver/InfoProvider.h
+@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ 
+ #pragma once
+ 
++#include <cstdint>
++
+ #include <string>
+ #include <functional>
+ #include "HttpRequest.h"
+diff --git a/source/debugserver/MemoryInfoProvider.cpp b/source/debugserver/MemoryInfoProvider.cpp
+index 3a3c6b27..8c0e372e 100644
+--- a/source/debugserver/MemoryInfoProvider.cpp
++++ b/source/debugserver/MemoryInfoProvider.cpp
+@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ // AppleWin includes
+ #include "Memory.h"
+ #include "CPU.h"
++#include "linux/keyboardbuffer.h"
+ 
+ namespace debugserver {
+ 
+@@ -42,6 +43,16 @@ void MemoryInfoProvider::HandleRequest(const HttpRequest& request, HttpResponse&
+     else if (path == "/api/read" || path == "/read") {
+         HandleApiRead(request, response);
+     }
++    else if (path == "/api/key" || path == "/key") {
++        // tk2000-tools: press a key (ASCII code in hex), e.g. /api/key?code=0D
++        std::string codeStr = request.GetQueryParam("code", "20");
++        if (!codeStr.empty() && codeStr[0] == '$') codeStr = codeStr.substr(1);
++        int code = static_cast<int>(std::stoul(codeStr, nullptr, 16)) & 0x7F;
++        addKeyToBuffer(static_cast<BYTE>(code));
++        JsonBuilder json;
++        json.BeginObject().Add("key", code).EndObject();
++        SendJsonResponse(response, json.ToPrettyString());
++    }
+     else if (path == "/api/zeropage" || path == "/zeropage") {
+         HandleApiZeroPage(request, response);
+     }

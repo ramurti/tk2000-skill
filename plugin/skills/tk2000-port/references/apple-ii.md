@@ -108,6 +108,33 @@ camada** (como a §8.3 para o 2600).
    música, nunca morrer, uma versão em disco (§6.5).
 
 
+### 9.3 O AppleWin como referência (Sky Fox, nov/2026)
+
+O Apple II do py65 (`a2boot.py`) é o que permite o lockstep, mas pode errar (disco, temporização,
+latch de teclado). Quando o original fizer algo estranho no py65 (travar, desenhar lixo), rode-o no
+**AppleWin para Linux** antes de depurar o jogo: no Sky Fox o py65 travava 16 s depois da decolagem
+e o AppleWin voou normalmente, o que provou que o defeito era do simulador.
+
+- Fonte: https://github.com/onionmixer/AppleWin (versão do audetto com um servidor de depuração
+  HTTP: `/api/info` nas portas 64501, `/api/registers` 64503, `/api/read?addr=HEX&len=256` 64504).
+  Pacotes (Debian/Ubuntu/Mint): `ninja-build libncurses-dev libevdev-dev libsdl2-image-dev
+  libslirp-dev libboost-program-options-dev libyaml-dev libminizip-dev libpcap-dev` (+ `libsdl2-dev`,
+  `libgles-dev`, `cmake`, `xxd`). Compilar só o `sa2`:
+  `git submodule update --init --recursive; git apply .../scripts/apple/applewin-key.patch;
+  mkdir build; cd build; cmake -G Ninja -DBUILD_SA2=ON -DCMAKE_BUILD_TYPE=RELEASE ..; ninja sa2`
+  (o alvo completo falha num teste; o patch põe o `<cstdint>` que falta no GCC 13).
+- **Teclas**: no Linux o `KeybQueueKeypress` é um stub vazio; o teclado real é o
+  `addKeyToBuffer` (`linux/keyboardbuffer.h`). O patch expõe `/api/key?code=HEX`.
+  O crack do Sky Fox espera uma tecla no logotipo (`LDA $C000 / BPL`): o py65 passava direto
+  porque o latch começa com uma tecla.
+- `scripts/apple/awrun.py DISK.dsk OUT -t 200 -s 5 -k 8:sp --wav`: Apple II+ (`-r "Configuration.Apple2
+  Type=1"`), `--headless --fixed-speed` (sem `--fixed-speed` ele corre à frente das capturas, e as
+  consultas HTTP às vezes caem: repita-as), config própria (`-c`), capturas, despejos e o WAV
+  do alto-falante (`--wav-speaker`: os sons originais para comparar com as opções do TK2000).
+- Não substitui o py65: não há passo a passo controlado de fora, então o lockstep continua no py65.
+  Use-o para saber o comportamento certo e para comparar a memória (código que o jogo reescreve
+  difere por momento: compare páginas que ficam estáveis entre três despejos seguidos).
+
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
 O primeiro porte de Apple II (§9): um disco DOS 3.3 crackeado, o código original rodando sem
