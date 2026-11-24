@@ -21,27 +21,37 @@ USE = os.path.join(ROOT, 'build', 'use')
 # logo depois dela (build/study/resident-14s.bin, do estado do AppleWin build/aw/res/snap-14.yaml)
 FLY_A = ['A22', 'A17']
 FLY_B = ['B1', 'B2']                    # voo B: build/aw/end1/snap-62 e snap-200, 30 s cada
+OPEN = ['O1', 'O2']                     # abertura (60 s sozinha) e menu (joystick), de build/aw/res/snap-14
+BRIEF = ['M1']                          # briefing e mapa tático (teclas S R Z T I J K M Esc C), de build/aw/sc0/snap-40
+ALL = FLY_A + FLY_B + OPEN + BRIEF
 RES = os.path.join(ROOT, 'build', 'study', 'resident-14s.bin')
 PKGS = {
-    'r08': (('res', 0x200), 0x0800, 'main', FLY_A),
-    't15': (15, 0x0A00, 'main', FLY_A),
-    'r1A': (('res', 0x600), 0x1A00, 'main', FLY_A),
-    'r20': (('res', 0x4000), 0x2000, 'main', FLY_A),
-    'rB0': (('res', 0x1000), 0xB000, 'main', FLY_A),
-    't7':  (7, 0x6000, 'main', FLY_A),
-    't16': (16, 0x7000, 'main', FLY_A),
-    't8':  (8, 0x8000, 'main', FLY_A),
-    't14': (14, 0x9000, 'main', FLY_A),
+    'r08': (('res', 0x200), 0x0800, 'main', ALL),
+    't15': (15, 0x0A00, 'main', ALL),
+    'r1A': (('res', 0x600), 0x1A00, 'main', ALL),
+    'r20': (('res', 0x4000), 0x2000, 'main', ALL),
+    'rB0': (('res', 0x1000), 0xB000, 'main', ALL),
+    't7':  (7, 0x6000, 'main', ALL),
+    't16': (16, 0x7000, 'main', FLY_A + OPEN),
+    't21': (21, 0x7000, 'main', BRIEF),
+    't11': (11, 0x7000, 'main', FLY_B),
+    't8':  (8, 0x8000, 'main', ALL),
+    't14': (14, 0x9000, 'main', FLY_A + OPEN + BRIEF),
+    't9':  (9, 0x9000, 'main', FLY_B),
+    't33': (33, 0xA000, 'main', OPEN),
+    't20': (20, 0xA000, 'main', BRIEF),
     't22': (22, 0xA000, 'main', ['A22']),
     't17': (17, 0xA000, 'main', ['A17']),
-    't18': (18, 0xD000, 'lc1', FLY_A),
-    't23': (23, 0xD000, 'lc2', FLY_A),
-    't24': (24, 0xE000, 'lchi', FLY_A),
-    't29': (29, 0xF000, 'lchi', FLY_A),
-    't11': (11, 0x7000, 'main', FLY_B),
-    't9':  (9, 0x9000, 'main', FLY_B),
     't12': (12, 0xA000, 'main', FLY_B),
+    't25': (25, 0xD000, 'lc1', OPEN),
+    't18': (18, 0xD000, 'lc1', FLY_A),
     't13': (13, 0xD000, 'lc1', FLY_B),
+    't31': (31, 0xD000, 'lc2', OPEN),
+    't23': (23, 0xD000, 'lc2', FLY_A + FLY_B + BRIEF),
+    't32': (32, 0xE000, 'lchi', OPEN),
+    't24': (24, 0xE000, 'lchi', FLY_A + FLY_B + BRIEF),
+    't30': (30, 0xF000, 'lchi', OPEN),
+    't29': (29, 0xF000, 'lchi', FLY_A + FLY_B + BRIEF),
 }
 X = 4
 disa2.NAMES.update({0xC083: 'LCRAM2RW', 0xC08B: 'LCRAM1RW', 0xC089: 'LCROM1W'})
