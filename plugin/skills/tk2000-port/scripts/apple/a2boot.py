@@ -248,7 +248,10 @@ def main():
     mpu.x = 0x60
     mpu.sp = 0xFF
     keys.sort()
-    files = catalog(dsk)
+    try:
+        files = catalog(dsk)
+    except (IndexError, ValueError):                           # disco sem catálogo DOS 3.3 (carregador próprio): veja sfboot.py
+        files = {}
     owner = ['boot'] * 0x10000                                 # de que arquivo veio cada endereço
     code = set()                                               # executados (arquivo, endereço)
     while mpu.processorCycles < max_cycles:
