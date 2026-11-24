@@ -102,6 +102,10 @@ def build_port(ao, pt, U):
         pt.ram[reloc(a)] = ao.ram[a]
     if pt.ram[0x20] == 0x20:
         pt.ram[0x20] = 0x80
+    import sfrelocs as _sr
+    for a in _sr.SMC_PG:                # deslocamentos de página já copiados para imediatos
+        if ao.ram[a] == 0x20:
+            pt.ram[reloc(a)] = 0x80
     import sfrelocs, dispkg as dk
     res = dk.source(None, ('res', 0x10000), 0)       # a memória depois da carga inicial
     for p in range(0x20, 0x60):                     # código instalado nos buracos depois da carga
@@ -194,8 +198,9 @@ def main():
         for k, v in enumerate(b):
             pt.write(x + k, v)
             owned.add(x + k)
-    spans = {a: a + len(old) for nm, d in sfrelocs.CODE.items() for a, (old, new) in d.items()
-             if len(old) > 1}                           # trechos trocados com outras fronteiras de instrução
+    spans = {a: (a + len(old), '') for d in (sfrelocs.CODE, sfrelocs.INCODE) for nm in d
+             for a, (old, new) in d[nm].items() if len(old) > 1}   # trechos trocados
+    spans.update(sfrelocs.SPANS)
     print('unidades carregadas:', ' '.join(sorted(loaded)), '| banco 1:', lc1)
     pt.joy, pt.btn = ao.joy, ao.btn                     # o mesmo joystick
 
@@ -255,6 +260,10 @@ def main():
                 else:
                     pt.write(x, ao.lc_hi[x - 0xE000])
                     blocks.add(('lchi', x & 0xF000))
+            mains = {b for nm_, (t_, b, r_, _) in dispkg.PKGS.items() if r_ == 'main' and not isinstance(t_, tuple)}
+            wmain = {x for region, x in writes if region == 'main'}
+            blocks = {bl for bl in blocks if bl[0] != 'main'} | {('main', b) for b in mains
+                                                                 if any(b <= x < b + 0x1000 for x in wmain)}
             names = []
             for region, base in sorted(blocks):
                 mem = ao.ram[base:base + 0x1000] if region == 'main' else (
@@ -278,6 +287,14 @@ def main():
                                 pt.ram[reloc(x)] = t[k]
                             elif region != 'lc1' or nm not in FIGS:
                                 pt.write(x, t[k])
+            import sfrelocs as _sr                      # buracos da tela escritos durante a carga: traduzidos
+            for hb in {x & 0xFFF8 for region, x in writes if region == 'main' and 0x2000 <= x < 0x6000
+                       and (x & 0x7F) >= 0x78}:
+                pt.ram[reloc(hb):reloc(hb) + 8] = _sr.snippet(bytes(ao.ram[hb:hb + 8]))
+            for s_ in range(0x101 + mo.sp, 0x1FF):      # a pilha que a carga deixou: retornos traduzidos
+                ret = ao.ram[s_] | ao.ram[s_ + 1] << 8
+                if (0x4000 <= ret < 0x6000 or 0xA000 <= ret < 0xC000) and ao.ram[(ret - 2) & 0xFFFF] == 0x20:
+                    pt.ram[s_ + 1] = reloc(ret) >> 8
             for r in ('a', 'x', 'y', 'sp', 'p', 'processorCycles'):
                 setattr(mp, r, getattr(mo, r))
             mp.pc = pcmap(mo.pc)
@@ -285,12 +302,18 @@ def main():
                                                    ','.join(str(t) for c, t in ao.track_log[-12:])))
             continue
         hist.append((mo.pc, mp.pc))
+        pt.ram[sfrelocs.KEY] = ao.key                   # a entrada do porte: a mesma do original
+        pt.ram[sfrelocs.BTN0] = 0x80 if ao.btn[0] else 0
+        pt.ram[sfrelocs.BTN1] = 0x80 if ao.btn[1] else 0
         if mo.pc in spans:                              # atravessa o trecho trocado nos dois
-            e = spans[mo.pc]
+            e, sync = spans[mo.pc]
             while mo.pc != e:
                 mo.step()
             while mp.pc != pcmap(e):
                 mp.step()
+            for r in sync:
+                setattr(mp, r, getattr(mo, r))
+            mp.processorCycles = mo.processorCycles
         else:
             mo.step()
             mp.step()

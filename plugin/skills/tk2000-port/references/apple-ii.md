@@ -172,6 +172,25 @@ unidades na versão TK2000). Aprendido:
 - Código que não rodou nas medições fica como dado e não é relocado: o lockstep o encontra quando
   roda; acrescente o endereço como ponto de entrada (`dispkg.SEEDS`).
 
+### 9.5 Do lockstep ao disco que roda no TK2000 (Sky Fox, nov/2026)
+
+- **Cobertura por fase**: código que só roda numa fase não medida fica como dado e não é relocado.
+  `scripts/apple/execpcs.py` registra as instruções executadas por unidade a partir de estados do
+  AppleWin, reconhecendo o pacote de cada área depois de cada carga; use como pontos de entrada.
+  O desmontador aceita o trecho reto de um ponto de entrada dado, mesmo se um desvio dele for ruim.
+- **Parâmetros embutidos depois do JSR** (a sub-rotina tira o retorno da pilha): ensine o tamanho ao
+  desmontador (fixo ou lido dos próprios bytes, ex.: um texto com o tamanho na frente).
+- **Código guardado como dado**: trechos copiados para outro endereço antes de rodar, e código de
+  buraco embutido em imagens (a rotina de figuras copia linhas inteiras, buracos inclusive): varra os
+  dados atrás de trechos que decodificam limpo até um JMP para um buraco e reloque-os.
+- **O carregador do jogo grava as páginas onde o Apple as quer**: no TK2000 o destino das páginas
+  `$40-$5F`/`$A0-$BF` também troca; desvie o `sta` do ponteiro de destino para a camada.
+- **Leitura de E/S sem dispositivo dá `$FF` no emulador**: botões do Apple "sempre apertados" e o
+  temporizador do joystick que não termina travam o jogo; dê ao porte uma entrada neutra na camada
+  antes de escolher os controles.
+- O lockstep não roda as cargas no porte: um erro no destino das páginas ou no carregador só aparece
+  no emulador do TK2000 (harness com ponto de parada por PC e vigia de byte).
+
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
 O primeiro porte de Apple II (§9): um disco DOS 3.3 crackeado, o código original rodando sem

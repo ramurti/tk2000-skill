@@ -1,3 +1,4 @@
+#include <algorithm>
 // Executor do TK2000 sem janela, para testes: carrega um .ct2 com LOADT, segura teclas, tira
 // capturas de tela e despeja a memória, tudo em tempo emulado.
 //
@@ -7,7 +8,13 @@
 //   -a grava a saída de áudio do emulador (as amostras do CAudio, como o tocador SDL as recebe)
 #include "pch.h"
 #include "Bus.h"
+#ifdef SHOW_REGS
+#define private public
+#endif
 #include "Cpu6502.h"
+#ifdef SHOW_REGS
+#undef private
+#endif
 #include "Rom.h"
 #include "Ram.h"
 #include "Video.h"
@@ -56,12 +63,61 @@ struct SWavRec : CObserver<sAudioMsg> {
 	}
 } wavRec;
 
+#ifdef SHOW_REGS
+int g_break = -1;
+double g_break_after = 0;
+bool g_watch20 = false;
+int g_watchq = -1;
+std::vector<int> g_qok;
+#endif
 static void run(double secs) {
 	const uint64_t chunk = (uint64_t)(CPU_CLOCK * MS_TO_RUN / 1000.0);
 	const uint64_t end = cpu.getCumulativeCycles() + (uint64_t)(secs * CPU_CLOCK);
 	while (cpu.getCumulativeCycles() < end) {
 		const uint64_t s = cpu.getCumulativeCycles();
 		while (cpu.getCumulativeCycles() - s < chunk) {
+#ifdef SHOW_REGS
+			{	// -b ADDR: quando o PC chega lá, mostra os últimos 64 PCs e sai
+				static unsigned short hist[64]; static int hp = 0;
+				extern int g_break;
+				const unsigned short pc = cpu.mRegPC.value;
+				extern double g_break_after;
+				if (g_break >= 0 && pc == g_break && cpu.getCumulativeCycles() >= g_break_after * CPU_CLOCK) {
+					printf("ponto de parada $%04X no ciclo %llu (A %02X X %02X Y %02X S %02X); antes:\n", pc,
+					       (unsigned long long)cpu.getCumulativeCycles(), cpu.mRegA, cpu.mRegX, cpu.mRegY, cpu.mRegS);
+					for (int k = 0; k < 64; k++) printf(" %04X", hist[(hp + k) & 63]);
+					printf("\n");
+					exit(0);
+				}
+				extern int g_watchq; static int qlast = -1;
+				if (g_watchq >= 0 && cpu.getCumulativeCycles() >= g_break_after * CPU_CLOCK) {
+					const int v = bus.readByte((word)g_watchq, cpu.getCumulativeCycles());
+					extern std::vector<int> g_qok;
+					bool okv = g_qok.empty() ? false : std::find(g_qok.begin(), g_qok.end(), v) != g_qok.end();
+					if (qlast >= 0 && v != qlast && !okv) {
+						printf("$%04X: $%02X -> $%02X no ciclo %llu, PC %04X (A %02X X %02X Y %02X S %02X); antes:\n",
+						       g_watchq, qlast, v, (unsigned long long)cpu.getCumulativeCycles(), pc,
+						       cpu.mRegA, cpu.mRegX, cpu.mRegY, cpu.mRegS);
+						for (int k = 0; k < 64; k++) printf(" %04X", hist[(hp + k) & 63]);
+						printf("\n");
+						exit(0);
+					}
+					qlast = v;
+				}
+				extern bool g_watch20;
+				if (g_watch20 && cpu.getCumulativeCycles() >= g_break_after * CPU_CLOCK) {
+					const byte v = bus.readByte(0x20, cpu.getCumulativeCycles());
+					if (v != 0x00 && v != 0x80) {
+						printf("$20 = $%02X no ciclo %llu, PC %04X; antes:\n", v,
+						       (unsigned long long)cpu.getCumulativeCycles(), pc);
+						for (int k = 0; k < 64; k++) printf(" %04X", hist[(hp + k) & 63]);
+						printf("\n");
+						exit(0);
+					}
+				}
+				hist[hp++ & 63] = pc;
+			}
+#endif
 			cpu.executeOpcode();
 		}
 		bus.updateAll(cpu.getCumulativeCycles());
@@ -135,6 +191,19 @@ int main(int argc, char** argv) {
 			wavRec.to = wavRec.from + atof(val.substr(c1 + 1, c2 - c1 - 1).c_str());
 			wavRec.file = val.substr(c2 + 1);
 			audio.attach(&wavRec);
+#ifdef SHOW_REGS
+		} else if (opt == "-b") {
+			g_break = (int)strtol(argv[++i], nullptr, 16);
+		} else if (opt == "-Q") {
+			g_watchq = (int)strtol(val.c_str(), nullptr, 16);
+		} else if (opt == "-q") {
+			for (size_t p = 0; p < val.size(); p += 3) g_qok.push_back((int)strtol(val.substr(p, 2).c_str(), nullptr, 16));
+		} else if (opt == "-P") {
+			g_watch20 = true;
+			i--;
+		} else if (opt == "-B") {
+			g_break_after = atof(argv[++i]);
+#endif
 		} else if (opt == "-w") {
 			auto c = val.find(':');
 			events.push_back({ atof(val.substr(0, c).c_str()), 3, val.substr(c + 1), 0 });
@@ -170,6 +239,10 @@ int main(int argc, char** argv) {
 			if (e.kind == 0) {
 				shot(e.arg);
 				printf("t=%.1f captura %s\n", now, e.arg.c_str());
+#ifdef SHOW_REGS
+				printf("  PC %04X A %02X X %02X Y %02X S %02X P %02X\n", cpu.mRegPC.value, cpu.mRegA,
+				       cpu.mRegX, cpu.mRegY, cpu.mRegS, cpu.mRegFlags);
+#endif
 				dump(mems);
 			} else if (e.kind == 3) {			// ADDR:HEXBYTES escritos na RAM
 				auto c = e.arg.find(':');

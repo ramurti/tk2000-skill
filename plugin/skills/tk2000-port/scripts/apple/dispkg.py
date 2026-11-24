@@ -25,13 +25,17 @@ USE = os.path.join(ROOT, 'build', 'use')
 # logo depois dela (reference/resident-14s.bin, do estado do AppleWin build/aw/res/snap-14.yaml)
 FLY_A = ['A22', 'A17']
 FLY_B = ['B1', 'B2']                    # voo B: build/aw/end1/snap-62 e snap-200, 30 s cada
-OPEN = ['O1', 'O2']                     # abertura (60 s sozinha) e menu (joystick), de build/aw/res/snap-14
-BRIEF = ['M1']                          # briefing e mapa tático (teclas S R Z T I J K M Esc C), de build/aw/sc0/snap-40
-ALL = FLY_A + FLY_B + OPEN + BRIEF
+OPEN = ['O1', 'O2', 'O3']              # abertura (60 s sozinha), menu (joystick), de build/aw/res/snap-14;
+                                        # O3: fim da abertura, build/aw/snaps/snap-100, 30 s
+BRIEF = ['M1', 'M2']                   # M2: briefing da demonstração, build/aw/snaps/snap-140, 14 s
+BRIEF_ONLY = BRIEF                          # briefing e mapa tático (teclas S R Z T I J K M Esc C), de build/aw/sc0/snap-40
+ALL = FLY_A + FLY_B + OPEN + BRIEF + ['D1']   # D1: snaps/snap-128, 40 s pela passagem abertura -> demonstração
+                                        # (só para as unidades que não mudam entre fases)
 RES = os.path.join(ROOT, 'reference', 'resident-14s.bin')  # do estado build/aw/res/snap-14.yaml
 PKGS = {
     'r08': (('res', 0x200), 0x0800, 'main', ALL),
-    't15': (15, 0x0A00, 'main', ALL),
+    't15': (15, 0x0A00, 'main', [r for r in ALL if r != 'D1']),   # D1 passa pela carga do t10 em $0A00
+    't10': (10, 0x0A00, 'main', []),    # carregado em $0A00 no voo da demonstração (antes do t15): só pelos SEEDS
     'r1A': (('res', 0x600), 0x1A00, 'main', ALL),
     'r20': (('res', 0x2000), 0x2000, 'main', ALL),
     'r40': (('res', 0x2000), 0x4000, 'main', ALL),     # vai para $A000 no TK2000
@@ -40,6 +44,7 @@ PKGS = {
     't16': (16, 0x7000, 'main', FLY_A + OPEN),
     't21': (21, 0x7000, 'main', BRIEF),
     't11': (11, 0x7000, 'main', FLY_B),
+    't19': (19, 0x7000, 'main', []),    # carregado em $7000 na demonstração, depois da troca 22 -> 17: pelos SEEDS
     't8':  (8, 0x8000, 'main', ALL),
     't14': (14, 0x9000, 'main', FLY_A + OPEN + BRIEF),
     't9':  (9, 0x9000, 'main', FLY_B),
@@ -48,7 +53,7 @@ PKGS = {
     't22': (22, 0xA000, 'main', ['A22']),
     't17': (17, 0xA000, 'main', ['A17']),
     't12': (12, 0xA000, 'main', FLY_B),
-    't25': (25, 0xD000, 'lc1', OPEN),
+    't25': (25, 0xD000, 'lc1', OPEN + ['O4', 'M2']),   # O4: snaps/snap-128, passa pelas cargas do briefing
     't18': (18, 0xD000, 'lc1', FLY_A),
     't13': (13, 0xD000, 'lc1', FLY_B),
     't31': (31, 0xD000, 'lc2', OPEN),
@@ -59,9 +64,26 @@ PKGS = {
     't29': (29, 0xF000, 'lchi', FLY_A + FLY_B + BRIEF),
 }
 X = 4
+INLINE = {0xB51B: 8,                    # jsr $B51B: 8 bytes de parâmetros embutidos (uma figura a desenhar)
+          0xB06F: lambda b, a: 3 + b(a + 5)}   # jsr $B06F: posição (2), tamanho (1) e o texto
 SEEDS = {                               # código que não rodou nas medições, achado pelo lockstep
     't8': [0x800B],                     # lda $227E / jsr $4BF8 (depois da troca do pacote de $A000)
+    't21': [0x70BF, 0x7425],            # logo depois da carga do briefing da demonstração (lockstep)
+    # t25: trechos de código guardados como dados, copiados para $67AE e executados lá (a passagem
+    # da abertura para a demonstração; tabelas $DBB8/$DBC7 = origem, $DBD6 = tamanho)
+    't25': [0xDBE5, 0xDBEB, 0xDC36, 0xDCA5, 0xDD00, 0xDD51, 0xDD6D],
 }
+# o carregador de trilhas roda com o motor ligado (as medições não o marcam): as instruções vistas
+# numa carga no py65 (build/use/loader-pcs.pkl, a troca t22 -> t17 do voo A)
+import glob as _glob
+for _f in sorted(_glob.glob(os.path.join(USE, 'exec-*.pkl'))):   # instruções vistas pelo tools/execpcs.py
+    for _nm, _p in pickle.load(open(_f, 'rb')).items():
+        SEEDS[_nm] = sorted(set(SEEDS.get(_nm, [])) | _p)
+_lp = os.path.join(USE, 'loader-pcs.pkl')
+if os.path.exists(_lp):
+    _pcs = pickle.load(open(_lp, 'rb'))
+    SEEDS['rB0'] = sorted(set(SEEDS.get('rB0', [])) | {p for p in _pcs if 0xB000 <= p < 0xC000})
+    SEEDS['r40'] = sorted({p for p in _pcs if 0x4000 <= p < 0x6000})
 disa2.NAMES.update({0xC083: 'LCRAM2RW', 0xC08B: 'LCRAM1RW', 0xC089: 'LCROM1W'})
 
 
@@ -133,7 +155,8 @@ def main():
         disa2.coverage = lambda name, b, n, cov=cov: cov
         # nas telas, código só nos buracos (os últimos 8 bytes de cada grupo de 128): o resto é imagem
         allow = (lambda x: (x & 0x7F) >= 0x78) if nm in ('r20', 'r40') else None
-        lines, ncov, tot = disa2.disassemble(nm, base, data, SEEDS.get(nm, ()), sfrelocs.patches(nm, base, data) if tk else None, allow)
+        lines, ncov, tot = disa2.disassemble(nm, base, data, SEEDS.get(nm, ()),
+                                             sfrelocs.patches(nm, base, data) if tk else None, allow, INLINE)
         what = ('residente (memória depois da carga inicial)' if isinstance(t, tuple) else 'trilha %d' % t)
         lines[0] = '; Sky Fox (Electronic Arts, 1984), Apple II: %s, %s em $%04X-$%04X (%s)' % (
             nm, what, base, base + len(data) - 1, region)

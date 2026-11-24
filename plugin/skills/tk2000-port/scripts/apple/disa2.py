@@ -59,8 +59,11 @@ def coverage(name, base, n):
     return cov
 
 
-def disassemble(name, base, data, seeds=(), tk=None, allow=None):
-    """allow(a): se dado, só aceita instruções cujos bytes todos ele permite (ex.: os buracos da tela)"""
+def disassemble(name, base, data, seeds=(), tk=None, allow=None, inline=None):
+    """allow(a): se dado, só aceita instruções cujos bytes todos ele permite (ex.: os buracos da tela).
+    inline: {destino de JSR: n}: sub-rotinas com n bytes de parâmetros depois do JSR (o código continua
+    depois deles)"""
+    inline = inline or {}
     n = len(data)
     end = base + n
 
@@ -82,7 +85,12 @@ def disassemble(name, base, data, seeds=(), tk=None, allow=None):
     def nexts(a, i):
         mn, mode, ln, v = i
         out = []
-        if mn not in END:
+        if mn == 'JSR' and mode == 'abs' and v in inline:
+            k = inline[v]                       # os parâmetros embutidos são dados (n, ou uma função
+            if not isinstance(k, int):          # que lê os bytes: k(byte, endereço do JSR))
+                k = k(lambda x: data[x - base] if base <= x < end else 0, a)
+            out.append(a + ln + k)
+        elif mn not in END:
             out.append(a + ln)
         if mode == 'rel' or (mn in ('JSR', 'JMP') and mode == 'abs'):
             out.append(v)
@@ -104,6 +112,7 @@ def disassemble(name, base, data, seeds=(), tk=None, allow=None):
     taken = owned(0)
     work = [t for a in list(code) for t in nexts(a, code[a])]
     work += [t for t in seeds if base <= t < base + n]
+    seedset = set(seeds)
     while work:
         start = work.pop()
         if start in code:
@@ -123,6 +132,18 @@ def disassemble(name, base, data, seeds=(), tk=None, allow=None):
         if ok:
             code.update(path)
             taken |= used
+        elif start in seedset:              # um ponto de entrada dado: aceita o trecho reto até o
+            a = start                       # primeiro problema (os desvios dele seguem a regra estrita)
+            while base <= a < end and a not in code:
+                i = ins(a)
+                if i is None or any(b in taken for b in range(a, a + i[2])):
+                    break
+                code[a] = i
+                taken.update(range(a, a + i[2]))
+                work += [t for t in nexts(a, i) if t != a + i[2]]
+                if i[0] in END:
+                    break
+                a += i[2]
 
     # rótulos: destinos e operandos dentro do arquivo
     labels = set()
