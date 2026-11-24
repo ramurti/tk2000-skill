@@ -12,18 +12,25 @@ index ca1ddb95..f34489f8 100644
  #include <functional>
  #include "HttpRequest.h"
 diff --git a/source/debugserver/MemoryInfoProvider.cpp b/source/debugserver/MemoryInfoProvider.cpp
-index 3a3c6b27..8c0e372e 100644
+index 3a3c6b27..541ace28 100644
 --- a/source/debugserver/MemoryInfoProvider.cpp
 +++ b/source/debugserver/MemoryInfoProvider.cpp
-@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+@@ -30,6 +30,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  // AppleWin includes
  #include "Memory.h"
  #include "CPU.h"
 +#include "linux/keyboardbuffer.h"
++#include <mutex>
++#include <vector>
++#include <utility>
++
++// tk2000-tools: save-states requested over HTTP, written by the main loop between frames
++std::mutex g_tk2000SnapMutex;
++std::vector<std::pair<unsigned long long, std::string>> g_tk2000Snaps;   // (cumulative cycle, file)
  
  namespace debugserver {
  
-@@ -42,6 +43,16 @@ void MemoryInfoProvider::HandleRequest(const HttpRequest& request, HttpResponse&
+@@ -42,6 +50,28 @@ void MemoryInfoProvider::HandleRequest(const HttpRequest& request, HttpResponse&
      else if (path == "/api/read" || path == "/read") {
          HandleApiRead(request, response);
      }
@@ -37,6 +44,61 @@ index 3a3c6b27..8c0e372e 100644
 +        json.BeginObject().Add("key", code).EndObject();
 +        SendJsonResponse(response, json.ToPrettyString());
 +    }
++    else if (path == "/api/snapshot" || path == "/snapshot") {
++        // tk2000-tools: /api/snapshot?file=/abs/path.yaml[&at=CYCLE] saves a save-state at (or after) a cycle
++        std::string file = request.GetQueryParam("file", "");
++        unsigned long long at = std::stoull(request.GetQueryParam("at", "0"));
++        {
++            std::lock_guard<std::mutex> lock(g_tk2000SnapMutex);
++            g_tk2000Snaps.emplace_back(at, file);
++        }
++        JsonBuilder json;
++        json.BeginObject().Add("file", file).EndObject();
++        SendJsonResponse(response, json.ToPrettyString());
++    }
      else if (path == "/api/zeropage" || path == "/zeropage") {
          HandleApiZeroPage(request, response);
      }
+diff --git a/source/frontends/sdl/main.cpp b/source/frontends/sdl/main.cpp
+index 29d02158..c7c9002a 100644
+--- a/source/frontends/sdl/main.cpp
++++ b/source/frontends/sdl/main.cpp
+@@ -23,6 +23,30 @@
+ #include "Core.h"
+ #include "NTSC.h"
+ #include "Interface.h"
++#include "SaveState.h"
++#include <mutex>
++#include <vector>
++#include <utility>
++
++// tk2000-tools: save-states requested over HTTP (debugserver/MemoryInfoProvider.cpp)
++extern std::mutex g_tk2000SnapMutex;
++extern std::vector<std::pair<unsigned long long, std::string>> g_tk2000Snaps;
++
++static void tk2000SaveRequestedSnapshots()
++{
++    std::lock_guard<std::mutex> lock(g_tk2000SnapMutex);
++    for (auto it = g_tk2000Snaps.begin(); it != g_tk2000Snaps.end();)
++    {
++        if (g_nCumulativeCycles >= it->first)
++        {
++            Snapshot_SetFilename(it->second);
++            Snapshot_SaveState();
++            it = g_tk2000Snaps.erase(it);
++        }
++        else
++            ++it;
++    }
++}
+ 
+ // comment out to test / debug init / shutdown only
+ #define EMULATOR_RUN
+@@ -136,6 +160,7 @@ void run_sdl(int argc, char *const argv[])
+ 
+             cpuTimer.tic();
+             frame->ExecuteOneFrame(oneFrameMicros);
++            tk2000SaveRequestedSnapshots();
+             cpuTimer.toc();
+ 
+             if (!options.headless)

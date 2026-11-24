@@ -70,6 +70,8 @@ class Apple:
         self.ht = 0                                            # meia trilha
         self.pos = 0
         self.motor = False
+        self.disk_cycles = 0                                   # ciclos por nibble (0 = disco instantâneo; 32 = real)
+        self.disk_last = -1
         self.key = 0
         self.keys = []
         self.log = []
@@ -166,6 +168,12 @@ class Apple:
             self.motor = True
         elif a == 0xEC:                                        # latch de leitura: o próximo nibble
             tr = self.tracks[self.ht // 2]
+            if self.disk_cycles:                               # o disco gira sozinho: um nibble a cada disk_cycles
+                n = self.mpu.processorCycles // self.disk_cycles
+                if n == self.disk_last:
+                    return tr[n % len(tr)] & 0x7F              # o mesmo nibble já lido: o próximo ainda não chegou
+                self.disk_last = n
+                return tr[n % len(tr)]
             v = tr[self.pos % len(tr)]
             self.pos = (self.pos + 1) % len(tr)
             return v

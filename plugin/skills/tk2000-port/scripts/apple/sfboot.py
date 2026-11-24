@@ -10,6 +10,9 @@ $E000-$FFFF da language card) e quais páginas foram executadas.
 -s: a cada EVERY_CYCLES grava PREFIX-shot-NNN.png com as duas páginas hi-res e a página mostrada.
 -L STATE.pkl: continua de um estado salvo (o -c continua contando ciclos absolutos)
 -S STATE.pkl: salva o estado (máquina inteira) no fim
+-D N: o disco gira de verdade, um nibble a cada N ciclos (32 = Apple II real; sem -D, instantâneo)
+-A SNAP.yaml: começa de um estado salvo do AppleWin (Apple II+; awrun.py --snap): RAM, language card,
+    CPU, trilha do disco (o motor tem de estar desligado no estado)
 -p CYCLE: imprime um perfil das páginas executadas a partir desse ciclo
 -o: grava PREFIX-main.bin ($0000-$BFFF), PREFIX-lc1.bin, PREFIX-lc2.bin ($D000-$DFFF de cada
     banco), PREFIX-lchi.bin ($E000-$FFFF) no fim.
@@ -64,6 +67,52 @@ class Study(Apple):
         return super().io(addr)
 
 
+def load_applewin(ap, path):
+    """Carrega um estado salvo do AppleWin (YAML) no Apple do py65: RAM $0000-$BFFF, os 16K do
+    language card ([$0000-$0FFF] banco 1 de $D000, [$1000-$1FFF] banco 2, [$2000-$3FFF] $E000-$FFFF),
+    o modo do language card, os registradores e o ciclo, a meia trilha do disco."""
+    lines = open(path).read().split('\n')
+
+    def block(start):
+        out = bytearray()
+        for ln in lines[start + 1:]:
+            t = ln.strip()
+            if len(t) < 6 or t[4] != ':' or not all(c in '0123456789ABCDEF' for c in t[:4]):
+                break
+            out += bytes.fromhex(t[6:])
+        return out
+
+    def val(key, after=0):
+        for ln in lines[after:]:
+            if ln.strip().startswith(key + ':'):
+                return ln.split(':', 1)[1].strip()
+        raise KeyError(key)
+    i_main = next(k for k, ln in enumerate(lines) if ln.strip() == 'Main Memory:')
+    ap.ram[0:0xC000] = block(i_main)[:0xC000]
+    i_lc = next(k for k, ln in enumerate(lines) if ln.strip() == 'Card: Language Card')
+    lc = block(next(k for k in range(i_lc, len(lines)) if lines[k].strip() == 'Memory Bank:'))
+    ap.lc[0][:] = lc[0x0000:0x1000]
+    ap.lc[1][:] = lc[0x1000:0x2000]
+    ap.lc_hi[:] = lc[0x2000:0x4000]
+    mode = int(val('Memory Mode', i_lc), 16)
+    ap.lc_read = bool(mode & 0x20)
+    ap.lc_write = bool(mode & 0x400)
+    ap.lc_bank = 2 if mode & 0x10 else 1
+    i_cpu = next(k for k, ln in enumerate(lines) if ln.strip() == 'CPU:')
+    m = ap.mpu
+    m.a, m.x, m.y = (int(val(r, i_cpu), 16) for r in ('A', 'X', 'Y'))
+    m.p = int(val('P', i_cpu), 16) | 0x30
+    m.sp = int(val('S', i_cpu), 16)
+    m.pc = int(val('PC', i_cpu), 16)
+    m.processorCycles = int(val('Cumulative Cycles', i_cpu), 16)
+    i_disk = next(k for k, ln in enumerate(lines) if ln.strip() == 'Card: Disk][')
+    if val('Floppy Motor On', i_disk) != 'false':
+        sys.exit('o motor do disco está ligado no estado do AppleWin: salve outro momento')
+    ap.ht = int(val('Phase', i_disk))
+    ap.motor = False
+    ap.key = int(val('Last Key', i_cpu), 16) | (0x80 if val('Key Waiting', i_cpu) == 'true' else 0)
+
+
 def hgr_img(mem, pg):
     """página hi-res como imagem 280x192, cores do Apple (aproximadas)"""
     img = Image.new('RGB', (280, 192))
@@ -108,6 +157,8 @@ def main():
     dsk = open(args[0], 'rb').read()
     max_cycles, keys, every, prefix = 100_000_000, [], 0, None
     load, save, prof_from = None, None, None
+    disk_cycles = 0
+    awstate = None
     i = 1
     while i < len(args):
         if args[i] == '-c':
@@ -124,6 +175,10 @@ def main():
             load = args[i + 1]; i += 2
         elif args[i] == '-S':
             save = args[i + 1]; i += 2
+        elif args[i] == '-A':
+            awstate = args[i + 1]; i += 2
+        elif args[i] == '-D':
+            disk_cycles = int(args[i + 1]); i += 2
         elif args[i] == '-p':
             prof_from = int(args[i + 1]); i += 2
         else:
@@ -133,6 +188,7 @@ def main():
         run(ap, ap.mpu, max_cycles, keys, every, prefix, save, prof_from)
         return
     ap = Study(dsk)
+    ap.disk_cycles = disk_cycles
     n = dsk[0]
     for p in range(n):
         ap.ram[0x800 + p * 256:0x900 + p * 256] = dsk[P2D[p] * 256:P2D[p] * 256 + 256]
@@ -146,6 +202,8 @@ def main():
     ap.fire_from = 1 << 62
     mpu.x = 0x60
     mpu.sp = 0xFF
+    if awstate:
+        load_applewin(ap, awstate)
     run(ap, mpu, max_cycles, keys, every, prefix, save, prof_from)
 
 

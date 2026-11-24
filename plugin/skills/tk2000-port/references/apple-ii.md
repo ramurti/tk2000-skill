@@ -131,6 +131,17 @@ e o AppleWin voou normalmente, o que provou que o defeito era do simulador.
   Type=1"`), `--headless --fixed-speed` (sem `--fixed-speed` ele corre à frente das capturas, e as
   consultas HTTP às vezes caem: repita-as), config própria (`-c`), capturas, despejos e o WAV
   do alto-falante (`--wav-speaker`: os sons originais para comparar com as opções do TK2000).
+- **Estados salvos como ponto de partida** (`awrun.py --snap SEGUNDOS`, `sfboot.py -A`,
+  `awcmp.py A.yaml B.yaml`): o py65 partindo de um estado do AppleWin fica **idêntico ciclo a
+  ciclo** a ele (registradores, RAM, language card) em todo trecho sem leitura de disco. Nos trechos
+  com leitura de disco os dois se separam, porque o disco do `a2boot.py` não tem a temporização do
+  Disk II real (fase de rotação, tempo de passo da cabeça). No Sky Fox o jogo é determinístico, mas
+  as cargas durante o voo dependem do tempo: do boot no py65 ele travava 16 s depois da decolagem;
+  partindo do estado do AppleWin em 155 s ele voou normalmente. Lição: **para comparar com o
+  original, comece do estado do AppleWin logo depois da última carga de disco**, não de um boot no
+  py65. Um estado só pode ser carregado com o motor do disco desligado (escolha outro segundo).
+  Atenção: uma janela do AppleWin aberta ocupa as portas 64501-64505 e as consultas vão para ela
+  (o `awrun.py` recusa rodar nesse caso).
 - Não substitui o py65: não há passo a passo controlado de fora, então o lockstep continua no py65.
   Use-o para saber o comportamento certo e para comparar a memória (código que o jogo reescreve
   difere por momento: compare páginas que ficam estáveis entre três despejos seguidos).

@@ -4,6 +4,8 @@ depuração HTTP dele, tira capturas das duas páginas hi-res e despeja a memór
 
     awrun.py DISK.dsk OUTDIR [-t SEGUNDOS_EMULADOS] [-s CADA_SEGUNDOS] [-k SEGUNDOS:TECLA]... [--sa2 CAMINHO] [--wav]
 
+--snap SEGUNDOS: salva um estado do AppleWin (YAML) em OUTDIR/snap-SEGUNDOS.yaml nesse segundo emulado
+(precisa do /api/snapshot do applewin-key.patch); repetível.
 -k: aperta TECLA (um caractere, 'r' = RETURN, 'esc', 'sp' = espaço) no segundo emulado dado; precisa do
 sa2 com o /api/key (branch tk2000-tools do clone do AppleWin: references/apple-ii.md).
 
@@ -11,7 +13,7 @@ OUTDIR/shot-NNN.png (página 1 | página 2, barra amarela na mostrada), OUTDIR/m
 ($0000-$BFFF + a visão da CPU de $D000-$FFFF), OUTDIR/log.txt (ciclo, PC, página),
 OUTDIR/speaker.wav com --wav. Usa um applewin.yaml próprio em OUTDIR (não mexe no ~/.config).
 """
-import json, os, subprocess, sys, time, urllib.error, urllib.request
+import json, os, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
 sys.path.insert(0, os.path.dirname(__file__))
 from sfboot import hgr_img
 from PIL import Image
@@ -43,20 +45,27 @@ def read_mem(lo, hi):
 
 def main():
     a = sys.argv[1:]
-    dsk, out = os.path.abspath(a[0]), a[1]
+    dsk, out = os.path.abspath(a[0]), os.path.abspath(a[1])  # absolutos: o sa2 troca de pasta
     secs, every = 200, 5
     sa2 = os.path.expanduser('~/code/tk2000/AppleWin/build/sa2')
     wav = '--wav' in a
     keys = []
+    snaps = []
     for i, x in enumerate(a):
         if x == '-t': secs = float(a[i + 1])
         if x == '-s': every = float(a[i + 1])
         if x == '--sa2': sa2 = a[i + 1]
+        if x == '--snap': snaps.append(float(a[i + 1]))
         if x == '-k':
             t, _, k = a[i + 1].partition(':')
             keys.append((float(t) * HZ, {'r': 0x0D, 'esc': 0x1B, 'sp': 0x20}.get(k, ord(k[0]) if k else 0x20)))
     keys.sort()
     os.makedirs(out, exist_ok=True)
+    import socket
+    for port in (64501, 64503, 64504):                         # outra janela do AppleWin aberta ocupa as portas
+        with socket.socket() as sk:
+            if sk.connect_ex(('127.0.0.1', port)) == 0:
+                sys.exit('a porta %d já está em uso: feche o outro AppleWin (sa2) antes' % port)
     cmd = [sa2, '--headless', '--fixed-speed', '-c', os.path.join(out, 'applewin.yaml'),
            '-r', 'Configuration.Apple2 Type=1', '--d1', dsk]
     cmd += ['--wav-speaker', os.path.join(out, 'speaker.wav')] if wav else ['--no-audio']
@@ -68,6 +77,8 @@ def main():
                 get(64501, '/api/info'); break
             except Exception:
                 time.sleep(0.2)
+        for t in snaps:
+            get(64504, '/api/snapshot?file=%s&at=%d' % (urllib.parse.quote(os.path.join(out, 'snap-%g.yaml' % t), safe=''), int(t * HZ)))
         n, nxt = 0, every * HZ
         while True:
             info = get(64501, '/api/info')
