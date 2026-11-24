@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Estudo do boot do Sky Fox: dá boot no .dsk no Apple II do a2boot.py (py65, 64K, language card,
+"""Estudo de um disco sem catálogo DOS 3.3 (feito para o Sky Fox): dá boot no .dsk no Apple II do a2boot.py (py65, 64K, language card,
 Disk II) e registra o que acontece, sem catálogo DOS 3.3 (o crack tem carregador próprio).
 
     sfboot.py DISK.dsk [-c MAX_CYCLES] [-k CYCLE[:KEY]]... [-s EVERY_CYCLES] [-o PREFIX]
