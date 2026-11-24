@@ -18,13 +18,13 @@ USE = os.path.join(ROOT, 'build', 'use')
 
 # pacote: (trilha, endereço, região do usage.py, medições do usage.py com o pacote na memória);
 # trilha 'res' (tamanho) = código residente, montado pela carga inicial: a referência é a memória
-# logo depois dela (build/study/resident-14s.bin, do estado do AppleWin build/aw/res/snap-14.yaml)
+# logo depois dela (reference/resident-14s.bin, do estado do AppleWin build/aw/res/snap-14.yaml)
 FLY_A = ['A22', 'A17']
 FLY_B = ['B1', 'B2']                    # voo B: build/aw/end1/snap-62 e snap-200, 30 s cada
 OPEN = ['O1', 'O2']                     # abertura (60 s sozinha) e menu (joystick), de build/aw/res/snap-14
 BRIEF = ['M1']                          # briefing e mapa tático (teclas S R Z T I J K M Esc C), de build/aw/sc0/snap-40
 ALL = FLY_A + FLY_B + OPEN + BRIEF
-RES = os.path.join(ROOT, 'build', 'study', 'resident-14s.bin')
+RES = os.path.join(ROOT, 'reference', 'resident-14s.bin')  # do estado build/aw/res/snap-14.yaml
 PKGS = {
     'r08': (('res', 0x200), 0x0800, 'main', ALL),
     't15': (15, 0x0A00, 'main', ALL),
