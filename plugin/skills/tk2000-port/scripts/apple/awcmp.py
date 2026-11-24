@@ -3,7 +3,9 @@
 py65 até o ciclo exato de outro estado salvo (B.yaml) e lista o que difere (registradores, páginas
 da RAM, language card).
 
-    awcmp.py DISK.dsk A.yaml B.yaml [-D 32] [-v]
+    awcmp.py DISK.dsk A.yaml B.yaml [-D 32] [-v] [-x N] [-y N]
+
+-x/-y: o joystick parado nessa posição (0-255; padrão 128), como no AppleWin entre os dois estados.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -26,6 +28,8 @@ def main():
     dsk = open(a[0], 'rb').read()
     A, B = state(a[1], dsk), state(a[2], dsk)
     if '-D' in a: A.disk_cycles = int(a[a.index('-D') + 1])
+    for n, k in enumerate(('-x', '-y')):
+        if k in a: A.paddle[n] = int(a[a.index(k) + 1])
     m = A.mpu
     while m.processorCycles < B.mpu.processorCycles:
         m.step()
