@@ -12,25 +12,40 @@ index ca1ddb95..f34489f8 100644
  #include <functional>
  #include "HttpRequest.h"
 diff --git a/source/debugserver/MemoryInfoProvider.cpp b/source/debugserver/MemoryInfoProvider.cpp
-index 3a3c6b27..541ace28 100644
+index 3a3c6b27..a63afcb1 100644
 --- a/source/debugserver/MemoryInfoProvider.cpp
 +++ b/source/debugserver/MemoryInfoProvider.cpp
-@@ -30,6 +30,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+@@ -30,6 +30,29 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  // AppleWin includes
  #include "Memory.h"
  #include "CPU.h"
 +#include "linux/keyboardbuffer.h"
 +#include <mutex>
++#include <atomic>
 +#include <vector>
 +#include <utility>
 +
 +// tk2000-tools: save-states requested over HTTP, written by the main loop between frames
 +std::mutex g_tk2000SnapMutex;
 +std::vector<std::pair<unsigned long long, std::string>> g_tk2000Snaps;   // (cumulative cycle, file)
++
++// tk2000-tools: a joystick driven over HTTP (/api/joy), used when no game controller is connected
++// (without it, sa2 reads both paddles as 255: the joystick looks pushed to the corner)
++#include "linux/paddle.h"
++namespace {
++    std::atomic<int> g_joyAxis[2] = {128, 128};
++    std::atomic<bool> g_joyButton[2] = {false, false};
++    class ApiPaddle : public Paddle {
++    public:
++        bool getButton(int i) const override { return g_joyButton[i & 1]; }
++        double getAxis(int i) const override { return g_joyAxis[i & 1] / 127.5 - 1.0; }
++    };
++}
++std::shared_ptr<Paddle> tk2000ApiPaddle() { return std::make_shared<ApiPaddle>(); }
  
  namespace debugserver {
  
-@@ -42,6 +50,28 @@ void MemoryInfoProvider::HandleRequest(const HttpRequest& request, HttpResponse&
+@@ -42,6 +65,40 @@ void MemoryInfoProvider::HandleRequest(const HttpRequest& request, HttpResponse&
      else if (path == "/api/read" || path == "/read") {
          HandleApiRead(request, response);
      }
@@ -42,6 +57,18 @@ index 3a3c6b27..541ace28 100644
 +        addKeyToBuffer(static_cast<BYTE>(code));
 +        JsonBuilder json;
 +        json.BeginObject().Add("key", code).EndObject();
++        SendJsonResponse(response, json.ToPrettyString());
++    }
++    else if (path == "/api/joy" || path == "/joy") {
++        // tk2000-tools: /api/joy?x=0..255&y=0..255&b0=0|1&b1=0|1 (each parameter optional)
++        std::string v;
++        if (!(v = request.GetQueryParam("x", "")).empty()) g_joyAxis[0] = std::stoi(v);
++        if (!(v = request.GetQueryParam("y", "")).empty()) g_joyAxis[1] = std::stoi(v);
++        if (!(v = request.GetQueryParam("b0", "")).empty()) g_joyButton[0] = v != "0";
++        if (!(v = request.GetQueryParam("b1", "")).empty()) g_joyButton[1] = v != "0";
++        JsonBuilder json;
++        json.BeginObject().Add("x", g_joyAxis[0].load()).Add("y", g_joyAxis[1].load())
++            .Add("b0", g_joyButton[0].load() ? 1 : 0).Add("b1", g_joyButton[1].load() ? 1 : 0).EndObject();
 +        SendJsonResponse(response, json.ToPrettyString());
 +    }
 +    else if (path == "/api/snapshot" || path == "/snapshot") {
@@ -60,10 +87,10 @@ index 3a3c6b27..541ace28 100644
          HandleApiZeroPage(request, response);
      }
 diff --git a/source/frontends/sdl/main.cpp b/source/frontends/sdl/main.cpp
-index 29d02158..c7c9002a 100644
+index 29d02158..c40d0d49 100644
 --- a/source/frontends/sdl/main.cpp
 +++ b/source/frontends/sdl/main.cpp
-@@ -23,6 +23,30 @@
+@@ -23,6 +23,31 @@
  #include "Core.h"
  #include "NTSC.h"
  #include "Interface.h"
@@ -75,6 +102,7 @@ index 29d02158..c7c9002a 100644
 +// tk2000-tools: save-states requested over HTTP (debugserver/MemoryInfoProvider.cpp)
 +extern std::mutex g_tk2000SnapMutex;
 +extern std::vector<std::pair<unsigned long long, std::string>> g_tk2000Snaps;
++std::shared_ptr<Paddle> tk2000ApiPaddle();
 +
 +static void tk2000SaveRequestedSnapshots()
 +{
@@ -94,7 +122,19 @@ index 29d02158..c7c9002a 100644
  
  // comment out to test / debug init / shutdown only
  #define EMULATOR_RUN
-@@ -136,6 +160,7 @@ void run_sdl(int argc, char *const argv[])
+@@ -69,8 +94,10 @@ void run_sdl(int argc, char *const argv[])
+ 
+     const LoggerContext logger(options.log);
+     const RegistryContext registryContext(CreateFileRegistry(options));
+-    const std::shared_ptr<Paddle> paddle =
++    std::shared_ptr<Paddle> paddle =
+         sa2::Gamepad::create(options.gameControllerIndex, options.gameControllerMappingFile);
++    if (!paddle)
++        paddle = tk2000ApiPaddle();   // tk2000-tools: centred joystick, driven by /api/joy
+ 
+     sa2::setAudioOptions(options);
+ 
+@@ -136,6 +163,7 @@ void run_sdl(int argc, char *const argv[])
  
              cpuTimer.tic();
              frame->ExecuteOneFrame(oneFrameMicros);

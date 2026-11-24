@@ -142,6 +142,11 @@ e o AppleWin voou normalmente, o que provou que o defeito era do simulador.
   py65. Um estado só pode ser carregado com o motor do disco desligado (escolha outro segundo).
   Atenção: uma janela do AppleWin aberta ocupa as portas 64501-64505 e as consultas vão para ela
   (o `awrun.py` recusa rodar nesse caso).
+- **Joystick**: sem controle conectado, o `sa2` não tem `Paddle::instance` e lê os dois paddles
+  como 255 (joystick no canto): menus guiados pelo joystick andam sozinhos (no Sky Fox o menu de
+  cenários trocava sem parar). O patch põe um joystick virtual centrado, controlado por `/api/joy`
+  (`awrun.py -j 30:x=255 -j 31:x=128 -j 40:b0=1 -j 41:b0=0`; o `awrun.py` espaça eventos seguidos
+  em 0,3 s emulados, senão apertar e soltar caem no mesmo instante).
 - Não substitui o py65: não há passo a passo controlado de fora, então o lockstep continua no py65.
   Use-o para saber o comportamento certo e para comparar a memória (código que o jogo reescreve
   difere por momento: compare páginas que ficam estáveis entre três despejos seguidos).

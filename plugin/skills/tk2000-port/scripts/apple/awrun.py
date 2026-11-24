@@ -4,12 +4,15 @@ depuração HTTP dele, tira capturas das duas páginas hi-res e despeja a memór
 
     awrun.py DISK.dsk OUTDIR [-t SEGUNDOS_EMULADOS] [-s CADA_SEGUNDOS] [-k SEGUNDOS:TECLA]... [--sa2 CAMINHO] [--wav]
 
+--mem: grava também OUTDIR/mem-NNN.bin (a memória inteira; lento: ~240 consultas por captura)
 --snap SEGUNDOS: salva um estado do AppleWin (YAML) em OUTDIR/snap-SEGUNDOS.yaml nesse segundo emulado
 (precisa do /api/snapshot do applewin-key.patch); repetível.
+-j SEGUNDOS:x=N,y=N,b0=0|1,b1=0|1: joystick virtual (0-255, 128 = centro) no segundo emulado dado;
+sem ele o joystick fica centrado e solto (precisa do /api/joy do applewin-key.patch).
 -k: aperta TECLA (um caractere, 'r' = RETURN, 'esc', 'sp' = espaço) no segundo emulado dado; precisa do
 sa2 com o /api/key (branch tk2000-tools do clone do AppleWin: references/apple-ii.md).
 
-OUTDIR/shot-NNN.png (página 1 | página 2, barra amarela na mostrada), OUTDIR/mem-NNN.bin
+OUTDIR/shot-NNN.png (página 1 | página 2, barra amarela na mostrada), com --mem OUTDIR/mem-NNN.bin
 ($0000-$BFFF + a visão da CPU de $D000-$FFFF), OUTDIR/log.txt (ciclo, PC, página),
 OUTDIR/speaker.wav com --wav. Usa um applewin.yaml próprio em OUTDIR (não mexe no ~/.config).
 """
@@ -49,6 +52,7 @@ def main():
     secs, every = 200, 5
     sa2 = os.path.expanduser('~/code/tk2000/AppleWin/build/sa2')
     wav = '--wav' in a
+    dump = '--mem' in a
     keys = []
     snaps = []
     for i, x in enumerate(a):
@@ -59,7 +63,10 @@ def main():
         if x == '-k':
             t, _, k = a[i + 1].partition(':')
             keys.append((float(t) * HZ, {'r': 0x0D, 'esc': 0x1B, 'sp': 0x20}.get(k, ord(k[0]) if k else 0x20)))
-    keys.sort()
+        if x == '-j':
+            t, _, j = a[i + 1].partition(':')
+            keys.append((float(t) * HZ, '&'.join(j.split(','))))
+    keys.sort(key=lambda k: k[0])
     os.makedirs(out, exist_ok=True)
     import socket
     for port in (64501, 64503, 64504):                         # outra janela do AppleWin aberta ocupa as portas
@@ -84,17 +91,27 @@ def main():
             info = get(64501, '/api/info')
             cyc = info['cycles']['cumulative']
             while keys and cyc >= keys[0][0]:
-                get(64504, '/api/key?code=%02X' % keys[0][1])
-                line = '      %6.1fs tecla %r' % (cyc / HZ, chr(keys[0][1]))
+                if isinstance(keys[0][1], str):
+                    get(64504, '/api/joy?' + keys[0][1])
+                    line = '      %6.1fs joystick %s' % (cyc / HZ, keys[0][1])
+                else:
+                    get(64504, '/api/key?code=%02X' % keys[0][1])
+                    line = '      %6.1fs tecla %r' % (cyc / HZ, chr(keys[0][1]))
                 print(line, flush=True); log.write(line + '\n')
                 keys.pop(0)
+                if keys and keys[0][0] < cyc + 0.3 * HZ:            # o próximo evento espera 0,3 s emulados
+                    keys[0] = (cyc + 0.3 * HZ, keys[0][1])
+                break
             if cyc < nxt:
                 time.sleep(0.05); continue
-            mem = read_mem(0x0000, 0xC000)
-            hi = read_mem(0xD000, 0x10000)
+            if dump:
+                mem = read_mem(0x0000, 0xC000)
+                hi = read_mem(0xD000, 0x10000)
+                open(os.path.join(out, 'mem-%03d.bin' % n), 'wb').write(mem + bytes(0x1000) + hi)
+            else:                                              # só as duas páginas hi-res (rápido)
+                mem = bytes(0x2000) + read_mem(0x2000, 0x6000)
             reg = get(64503, '/api/registers')
             pg2 = info['memory']['page2']
-            open(os.path.join(out, 'mem-%03d.bin' % n), 'wb').write(mem + bytes(0x1000) + hi)
             p1, p2 = hgr_img(mem, 1), hgr_img(mem, 2)
             img = Image.new('RGB', (568, 204), (60, 60, 60))
             img.paste(p1, (0, 12)); img.paste(p2, (288, 12))
