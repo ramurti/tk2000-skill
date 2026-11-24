@@ -20,6 +20,7 @@ USE = os.path.join(ROOT, 'build', 'use')
 # trilha 'res' (tamanho) = código residente, montado pela carga inicial: a referência é a memória
 # logo depois dela (build/study/resident-14s.bin, do estado do AppleWin build/aw/res/snap-14.yaml)
 FLY_A = ['A22', 'A17']
+FLY_B = ['B1', 'B2']                    # voo B: build/aw/end1/snap-62 e snap-200, 30 s cada
 RES = os.path.join(ROOT, 'build', 'study', 'resident-14s.bin')
 PKGS = {
     'r08': (('res', 0x200), 0x0800, 'main', FLY_A),
@@ -37,6 +38,10 @@ PKGS = {
     't23': (23, 0xD000, 'lc2', FLY_A),
     't24': (24, 0xE000, 'lchi', FLY_A),
     't29': (29, 0xF000, 'lchi', FLY_A),
+    't11': (11, 0x7000, 'main', FLY_B),
+    't9':  (9, 0x9000, 'main', FLY_B),
+    't12': (12, 0xA000, 'main', FLY_B),
+    't13': (13, 0xD000, 'lc1', FLY_B),
 }
 X = 4
 disa2.NAMES.update({0xC083: 'LCRAM2RW', 0xC08B: 'LCRAM1RW', 0xC089: 'LCROM1W'})
@@ -106,7 +111,7 @@ def main():
         what = ('residente (memória depois da carga inicial)' if isinstance(t, tuple) else 'trilha %d' % t)
         lines[0] = '; Sky Fox (Electronic Arts, 1984), Apple II: %s, %s em $%04X-$%04X (%s)' % (
             nm, what, base, base + len(data) - 1, region)
-        lines[1] = '; gerado por tools/dispkg.py: %d instruções que rodaram no voo A (%s), mais %d pelo rastreio estático' % (
+        lines[1] = '; gerado por tools/dispkg.py: %d instruções que rodaram no voo (%s), mais %d pelo rastreio estático' % (
             ncov, ', '.join(runs), tot - ncov)
         open(os.path.join(ROOT, 'src', 'dis', nm + '.s'), 'w').write('\n'.join(lines) + '\n')
         line = '%-4s %-8s $%04X %-4s  %4d instruções que rodaram, %4d com o rastreio' % (

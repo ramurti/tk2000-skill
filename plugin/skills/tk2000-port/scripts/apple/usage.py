@@ -23,6 +23,7 @@ class Use(sfboot.Study):
         self.u = {'main': bytearray(0xC000), 'lc1': bytearray(0x1000), 'lc2': bytearray(0x1000),
                   'lchi': bytearray(0x2000)}
         self.sw = []
+        self.lc1pc = Counter()                                 # quem acessa o banco 1: PC -> vezes
         self.joy = [128, 128]
         self.btn = [False, False]
 
@@ -34,6 +35,8 @@ class Use(sfboot.Study):
         elif addr >= 0xD000 and (self.lc_write if write else self.lc_read):
             if addr < 0xE000:
                 self.u['lc%d' % self.lc_bank][addr - 0xD000] |= f
+                if self.lc_bank == 1 and f != 4:
+                    self.lc1pc[self.mpu.pc] += 1
             else:
                 self.u['lchi'][addr - 0xE000] |= f
 
@@ -98,6 +101,8 @@ def main():
         print('%-4s usados %5d de %5d (executados %d)' % (k, used, len(arr), sum(1 for b in arr if b & X)))
     c = Counter((pc & 0xFF00, addr) for _, pc, addr in ap.sw)
     print('trilhas lidas:', ' '.join('%.1fs:%d' % ((c - t0) / 1020484, t) for c, t in ap.track_log))
+    if ap.lc1pc:
+        print('acessos ao banco 1 por PC:', ' '.join('$%04X:%d' % x for x in ap.lc1pc.most_common(16)))
     print('trocas de banco:', len(ap.sw), ' '.join('$%04X@$%04X:%d' % (addr, pc, n) for (pc, addr), n in c.most_common(12)))
 
 
