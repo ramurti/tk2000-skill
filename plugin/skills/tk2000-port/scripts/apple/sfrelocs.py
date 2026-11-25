@@ -97,9 +97,12 @@ CODE = {
 }
 
 # A entrada (src/tklayer.s): o teclado e o joystick do Apple -> variáveis da camada
-KEY, BTN0, BTN1 = 0x62E0, 0x62E1, 0x62E2
+KEY, BTN0, BTN1 = 0x6480, 0x6481, 0x6482
 KCLR, PDL8, PDL25, PREAD = 0x6206, 0x6209, 0x620C, 0x620F
-_OP = {0xC000: KEY, 0xC061: BTN0, 0xC062: BTN1}
+TKKEY, TKB0B, TKB1B, TKL0, TKL1 = 0x6212, 0x6215, 0x6218, 0x621B, 0x621E
+# a leitura (opcode, E/S do Apple) -> a rotina da camada que varre o teclado e devolve o mesmo
+_ROUT = {(0xAD, 0xC000): TKKEY, (0x2C, 0xC061): TKB0B, (0x2C, 0xC062): TKB1B,
+         (0xAD, 0xC061): TKL0, (0xAD, 0xC062): TKL1}
 INPUT = {                               # unidade: [(endereço da instrução, E/S do Apple)]
     'r40': [(0x52F8, 0xC000)], 't32': [(0xEB60, 0xC000)],
     't7': [(0x6C65, 0xC000), (0x6C6A, 0xC061), (0x6C6F, 0xC062)],
@@ -118,6 +121,7 @@ INCODE = {                              # trocas de instrução da entrada
 }
 # para o lockstep: trechos trocados com outro fim (endereço do Apple) e os registradores a igualar
 SPANS = {0x894A: (0x896A, 'xy'), 0xD363: (0xD383, 'xy'), 0xB020: (0xB030, 'ay')}
+SPANS.update({a: (a + 3, 'ap') for d in INPUT.values() for a, io in d})   # as leituras viradas jsr
 
 HOLES = {
     't32': (0xEC00, 0xF000),            # voo A usa $EC00-$EDFF, voo B $EE00-$EFFF
@@ -273,9 +277,10 @@ def patches(nm, base, data):
             for k, v in enumerate(b):
                 if v != data[st - base + k]:
                     out[st + k] = v
-    for a, io in INPUT.get(nm, []):
+    for a, io in INPUT.get(nm, []):              # leitura de teclado/botão -> jsr para a camada
         assert data[a - base + 1] | data[a - base + 2] << 8 == io, (nm, hex(a))
-        out[a + 1], out[a + 2] = _OP[io] & 0xFF, _OP[io] >> 8
+        r = _ROUT[(data[a - base], io)]
+        out[a], out[a + 1], out[a + 2] = 0x20, r & 0xFF, r >> 8
     for a, (old, new) in list(CODE.get(nm, {}).items()) + list(INCODE.get(nm, {}).items()):
         assert data[a - base:a - base + len(old)] == old, (nm, hex(a))
         for k, v in enumerate(new):

@@ -188,6 +188,12 @@ unidades na versão TK2000). Aprendido:
 - **Leitura de E/S sem dispositivo dá `$FF` no emulador**: botões do Apple "sempre apertados" e o
   temporizador do joystick que não termina travam o jogo; dê ao porte uma entrada neutra na camada
   antes de escolher os controles.
+- **Controles pelo teclado do TK2000** (Sky Fox): troque cada leitura de `$C000`/`$C061`/`$C062`
+  por `jsr` para a camada (mesmo tamanho; a rotina varre a matriz e devolve A ou os flags do BIT).
+  Faça primeiro um teste rápido com todas as linhas (KBOUT = `$FF`): os laços de espera do jogo
+  leem o teclado milhares de vezes e uma varredura completa a cada leitura os deixaria lentos.
+  Joystick analógico pelas setas em rampa (o dono do projeto escolheu entre tudo-ou-nada, rampa e
+  meio/inteiro com SHIFT); o menu precisa da seta segurada ~1 s.
 - O lockstep não roda as cargas no porte: um erro no destino das páginas ou no carregador só aparece
   no emulador do TK2000 (harness com ponto de parada por PC e vigia de byte).
 
