@@ -262,8 +262,95 @@ def hole_snippets(data, base):
     return out
 
 
+# Cores (escolha do dono do projeto, 25/11/2026): no voo, chão verde e céu azul. Os padrões de
+# preenchimento do Apple (céu azul $D5/$AA, chão verde $2A/$55) saem ciano e azul no TK2000; com
+# os bytes do verde do Apple o TK2000 mostra azul, e com os do violeta ($55/$2A), verde (a mesma
+# paleta: sem franja no horizonte). Os imediatos dos padrões, nas rotinas que pintam o céu e o chão:
+COLOR_MAP = {0xD5: 0x2A, 0xAA: 0x55, 0x2A: 0x55, 0x55: 0x2A}
+COLORS = {
+    't16': [0x70F5, 0x7103, 0x7111, 0x711C, 0x71CF, 0x71D3, 0x71D7, 0x71E5, 0x734C, 0x735A, 0x7368,
+            0x7373, 0x73FC, 0x7400, 0x7404, 0x7412, 0x746B, 0x7470, 0x74AE, 0x74B3, 0x7557, 0x755C,
+            0x7561, 0x7566, 0x7592, 0x7597, 0x75DD, 0x75E2, 0x75E7, 0x75EC, 0x75F5, 0x75FA, 0x75FF,
+            0x7604, 0x7677, 0x767C, 0x76A0, 0x76A5, 0x76AA, 0x76AF, 0x76D6, 0x76DB, 0x7720, 0x7725,
+            0x772E, 0x7733, 0x775C, 0x7761, 0x777E, 0x7783, 0x77AF, 0x77B4, 0x77EF, 0x77F4],
+    't19': [0x7389, 0x7392, 0x73D6, 0x74E5, 0x74FE, 0x751F],
+}
+
+
+_cj = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'src', 'cores.json')
+_cd = __import__('json').load(open(_cj)) if _os.path.exists(_cj) else {}
+COLORDATA = _cd.get('troca', {})       # padrões de céu e chão: COLOR_MAP
+BIT7DATA = _cd.get('bit7', {})         # preto/branco da moldura: bit 7 desligado
+CONFLITO = _cd.get('conflito', {})     # pintam céu/chão e outra cor: ficam como estão
+
+
+# as imagens em fluxo da rotina rB0 $B229 (ldx/ldy # antes do jsr): coluna por coluna, de baixo
+# para cima; $FE, contagem, valor = repetição. As marcas e as contagens não são cores.
+STREAMS = [0xA5A0, 0x79DD]
+
+
+def stream_ctl(base, data):
+    """os endereços das marcas $FE e das contagens dos fluxos que começam nesta unidade"""
+    ctl = set()
+    for st in STREAMS:
+        if not base <= st < base + len(data):
+            continue
+        p, cells = st, 40 * 192
+        while cells > 0 and base <= p < base + len(data) - 2:
+            if data[p - base] == 0xFE:
+                ctl.update((p, p + 1))
+                cells -= data[p + 1 - base] or 256
+                p += 3
+            else:
+                cells -= 1
+                p += 1
+    return ctl
+
+
+STREAM_CABINE = {'t22': 0xA5A0}        # a imagem da pista (dentro da cabine): refeita com as cores
+
+
+def _cabine(y, c, v):
+    import sfcores as C
+    o = C.row(y) + c
+    if C.JANELA[o] and (v, c & 1) in C.SWAP:
+        return C.SWAP[(v, c & 1)]
+    if C.bw(v) and not C.JANELA[o] and C.JANELA[(o + 1) & 0x1FFF]:
+        return v & 0x7F
+    return v
+
+
 def patches(nm, base, data):
     out = {}
+    ctl = stream_ctl(base, data)
+    if nm in STREAM_CABINE:                     # a imagem inteira, pela regra da cabine (sfcores)
+        import sfstream
+        st = STREAM_CABINE[nm]
+        toks, end = sfstream.decode(data, base, st)
+        new = sfstream.recolor(toks, _cabine)
+        room = end
+        while room < base + len(data) and data[room - base] == 0:
+            room += 1
+        assert st + len(new) <= room, 'a imagem refeita não cabe'
+        for k, v in enumerate(new):
+            if data[st - base + k] != v:
+                out[st + k] = v
+        ctl |= set(range(st, end))              # as listas do rastreio não mexem nela
+    for a in (set(COLORS.get(nm, [])) - set(CONFLITO.get(nm, [])) | set(COLORDATA.get(nm, []))) - ctl:
+        if data[a - base] in COLOR_MAP:
+            out[a] = COLOR_MAP[data[a - base]]
+    troca = set(COLORS.get(nm, [])) | set(COLORDATA.get(nm, []))
+    for a in BIT7DATA.get(nm, []):
+        v = data[a - base]
+        bw = v & 0x80 and all(((v >> k) & 1) == 0 or (k > 0 and (v >> (k - 1)) & 1) or
+                              (k < 6 and (v >> (k + 1)) & 1) for k in range(7))
+        if bw and a not in troca and a not in ctl:   # só preto/branco de verdade (o rastreio junta origens)
+            out[a] = v & 0x7F
+    if nm in ('r20', 'r40'):                    # a tela do título com as cores do TK2000 (sfcores, opção C)
+        import sfcores
+        for k, v in enumerate(sfcores.abertura(data)):
+            if v != data[k]:
+                out[base + k] = v
     if nm in ('r20', 'r40'):                    # cada buraco da tela, como os que o jogo instala
         for h in range(base, base + len(data), 0x80):
             hb = h + 0x78

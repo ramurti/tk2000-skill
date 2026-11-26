@@ -148,14 +148,64 @@ def main():
     names = [x for x in a if not x.startswith('--')] or list(PKGS)
     dsk = open(DSK, 'rb').read()
     os.makedirs(os.path.join(ROOT, 'src', kind), exist_ok=True)
+    xseeds = {}                                 # pontos de entrada vindos de saltos de outras unidades
+    for rnd in range(4):
+        for nm in names:
+            one(nm, dsk, kind, tk, chk and False, xseeds, quiet=True)
+        new = cross_seeds()
+        if all(new.get(k, set()) <= xseeds.get(k, set()) for k in new):
+            break
+        for k, v in new.items():
+            xseeds.setdefault(k, set()).update(v)
+    print('pontos de entrada de outras unidades:', {k: len(v) for k, v in sorted(xseeds.items())})
     for nm in names:
+        one(nm, dsk, kind, tk, chk, xseeds)
+
+
+# as unidades sempre na memória (o mesmo endereço em todas as fases): um JSR/JMP de outra unidade
+# para dentro delas é um ponto de entrada (ex.: os buracos do r40 pulam para o rB0 $B8D6, que
+# nenhuma medição executou)
+FIXED = ('r08', 'r1A', 'rB0', 't7', 't8')
+
+
+def hole_jumps():
+    """os JSR/JMP do código dos buracos das telas residentes (relocado à parte, fora do desmontador)"""
+    res = open(RES, 'rb').read()
+    out = set()
+    for nm in ('r20', 'r40'):
+        base = PKGS[nm][1]
+        d = res[base:base + 0x2000]
+        for h in range(0x78, 0x2000, 0x80):
+            for k in range(h, h + 6):
+                if d[k] in (0x20, 0x4C):
+                    out.add(d[k + 1] | d[k + 2] << 8)
+    return out
+
+
+def cross_seeds():
+    out = {}
+    for src, targets in list(disa2.EXTERNAL.items()) + [('buracos', hole_jumps())]:
+        for v in targets:
+            for nm in FIXED:
+                t, base, region, runs = PKGS[nm]
+                n = {'r08': 0x200, 'r1A': 0x600}.get(nm, 0x1000)
+                if base <= v < base + n:
+                    out.setdefault(nm, set()).add(v)
+    return out
+
+
+def one(nm, dsk, kind, tk, chk, xseeds, quiet=False):
+    if True:
+        if tk:
+            import sfrelocs
         t, base, region, runs = PKGS[nm]
         data = source(dsk, t, base)
         cov = starts(executed(region, base, runs, len(data)), base, data)
         disa2.coverage = lambda name, b, n, cov=cov: cov
         # nas telas, código só nos buracos (os últimos 8 bytes de cada grupo de 128): o resto é imagem
         allow = (lambda x: (x & 0x7F) >= 0x78) if nm in ('r20', 'r40') else None
-        lines, ncov, tot = disa2.disassemble(nm, base, data, SEEDS.get(nm, ()),
+        seeds = set(SEEDS.get(nm, ())) | xseeds.get(nm, set())
+        lines, ncov, tot = disa2.disassemble(nm, base, data, sorted(seeds),
                                              sfrelocs.patches(nm, base, data) if tk else None, allow, INLINE)
         what = ('residente (memória depois da carga inicial)' if isinstance(t, tuple) else 'trilha %d' % t)
         lines[0] = '; Sky Fox (Electronic Arts, 1984), Apple II: %s, %s em $%04X-$%04X (%s)' % (
@@ -164,6 +214,8 @@ def main():
             ncov, ', '.join(runs), tot - ncov)
         if tk:
             lines[0] += ', para o TK2000 (tools/sfrelocs.py)'
+        if quiet:
+            return
         open(os.path.join(ROOT, 'src', kind, nm + '.s'), 'w').write('\n'.join(lines) + '\n')
         line = '%-4s %-8s $%04X %-4s  %4d instruções que rodaram, %4d com o rastreio' % (
             nm, 'residente' if isinstance(t, tuple) else 'trilha %d' % t, base, region, ncov, tot)

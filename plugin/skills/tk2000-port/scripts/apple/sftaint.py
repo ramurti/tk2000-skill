@@ -13,6 +13,9 @@ motor do disco ligado (as cargas) não conta, e os bytes que a carga grava viram
 
 --lc1: vigia, em vez das duas áreas, as leituras do banco 1 do language card ($D000-$DFFF com o
 banco 1 ligado): de onde vêm os ponteiros para as figuras do banco 1.
+--cores: vigia as escritas de $D5/$AA/$2A/$55 (céu e chão) e de preto/branco com o bit 7 nas telas
+da cabine e da abertura, fora dos buracos: de onde vêm os valores, marcados pela regra de
+tools/sfcores.py: 'troca' / 'mantem' (céu e chão), 'bit7' / 'mbw' (moldura).
 
 Saída: uma linha por origem: tipo, endereço, valor no fim, e quem usou (PC, modo, vezes).
 """
@@ -24,6 +27,8 @@ from a2boot import Mem
 from py65.devices.mpu6502 import MPU
 
 WATCH = lambda a: 0x4000 <= a < 0x6000 or 0xA000 <= a < 0xC000   # noqa: E731
+_jm = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'janela-mask.bin')
+JANELA = open(_jm, 'rb').read() if os.path.exists(_jm) else bytes(0x2000)   # --cores: a janela da cabine
 MAXSET = 12
 E = frozenset()
 OPS = MPU().disassemble
@@ -50,11 +55,38 @@ def main():
     m.cycletime = list(m.cycletime); m.cycletime[0xCE] = 6
     ap.mpu = m; ap.fire_from = 1 << 62; ap.disk_cycles = 32
     sfboot.load_applewin(ap, a[1])
+    if '--cores' in sys.argv:
+        import sfcores, execpcs, dispkg
+        from sflockstep import Units
+        dfr = sfcores.Deferred(ap)
+        UN = Units(dsk)
+        res = [execpcs.residency(ap, UN)]           # que unidade está em cada área (refeito depois das cargas)
+
+        def unit(x):
+            for nm, (b, n, reg) in res[0].items():
+                if reg == 'main' and x < 0xC000 and b <= x < b + n:
+                    return nm
+                if reg == 'lchi' and x >= 0xE000 and b <= x < b + n:
+                    return nm
+                if reg == 'lc%d' % ap.lc_bank and 0xD000 <= x < 0xE000:
+                    return nm
+            return None
+
+        def judge(x, v, payload, w):            # 'troca'/'bit7': muda; senão o mesmo valor fica
+            if dfr.sc.of(x) is None:
+                return
+            pc_, orgs = payload
+            w = w or ('mantem' if v in sfcores.FILL else 'mbw')
+            for org, un, val in orgs:           # a origem com a unidade e o valor da hora da escrita
+                hits[(org[0], org[1], un, val)][(pc_, w)] += 1
     t0 = m.processorCycles
     end = t0 + int(a[2])
     out = a[3]
     lc1 = '--lc1' in a
-    a = [x for x in a if x != '--lc1']
+    cores = '--cores' in a
+    ninst = [0]
+    was_loading = [False]
+    a = [x for x in a if x not in ('--lc1', '--cores')]
     if lc1:
         global WATCH
         WATCH = lambda x: 0xD000 <= x < 0xE000 and ap.lc_read and ap.lc_bank == 1   # noqa: E731
@@ -130,6 +162,21 @@ def main():
                 if t is not None:
                     for o in t:
                         hits[o][(pc, mn + ' smc')] += 1
+        if cores and not loading and mn in ('STA', 'STX', 'STY') and ea is not None and 0x2000 <= ea < 0x6000 \
+                and (ea & 0x7F) < 0x78:
+            v = {'STA': m.a, 'STX': m.x, 'STY': m.y}[mn]
+            if v in sfcores.FILL or sfcores.bw(v):
+                orgs = {'STA': rt['a'], 'STX': rt['x'], 'STY': rt['y']}[mn]   # a unidade de cada origem
+                dfr.put(ea, v, (pc, [(o, unit(o[1]), rd(o[1])) for o in orgs]))   # agora, não na hora de julgar
+        if cores and loading:
+            was_loading[0] = True
+        elif cores and was_loading[0]:
+            was_loading[0] = False
+            dfr.settle(judge)
+            res[0] = execpcs.residency(ap, UN)
+        if cores and ninst[0] % 5000 == 0:
+            dfr.settle(judge)
+        ninst[0] += 1
         if mn == 'RTS' and not loading:
             hi_a = 0x100 + ((m.sp + 2) & 0xFF)
             ret = (rd(0x100 + ((m.sp + 1) & 0xFF)) | rd(hi_a) << 8) + 1
@@ -176,7 +223,10 @@ def main():
         for o in sorted(hits):
             c = hits[o]
             users = ', '.join('$%04X %s x%d' % (p, k, n) for (p, k), n in c.most_common(6))
-            f.write('%-4s $%04X  valor $%02X  <- %s\n' % (o[0], o[1], rd(o[1]), users))
+            if len(o) == 4:                     # --cores: a unidade e o valor quando foi usada
+                f.write('%-4s $%04X  valor $%02X  <- %s  @%s\n' % (o[0], o[1], o[3], users, o[2]))
+            else:
+                f.write('%-4s $%04X  valor $%02X  <- %s\n' % (o[0], o[1], rd(o[1]), users))
     print('%d origens -> %s' % (len(hits), out))
 
 

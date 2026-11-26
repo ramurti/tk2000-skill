@@ -65,6 +65,8 @@ struct SWavRec : CObserver<sAudioMsg> {
 
 #ifdef SHOW_REGS
 int g_break = -1;
+int g_break_hi = -1;			// -b LO-HI: para no primeiro PC dentro da faixa
+int g_smin = -1;			// -S VAL: para quando o ponteiro da pilha fica abaixo de VAL
 double g_break_after = 0;
 bool g_watch20 = false;
 int g_watchq = -1;
@@ -82,7 +84,8 @@ static void run(double secs) {
 				extern int g_break;
 				const unsigned short pc = cpu.mRegPC.value;
 				extern double g_break_after;
-				if (g_break >= 0 && pc == g_break && cpu.getCumulativeCycles() >= g_break_after * CPU_CLOCK) {
+				extern int g_break_hi, g_smin;
+				if (((g_break >= 0 && pc >= g_break && pc <= g_break_hi) || (g_smin >= 0 && cpu.mRegS < g_smin)) && cpu.getCumulativeCycles() >= g_break_after * CPU_CLOCK) {
 					printf("ponto de parada $%04X no ciclo %llu (A %02X X %02X Y %02X S %02X); antes:\n", pc,
 					       (unsigned long long)cpu.getCumulativeCycles(), cpu.mRegA, cpu.mRegX, cpu.mRegY, cpu.mRegS);
 					for (int k = 0; k < 64; k++) printf(" %04X", hist[(hp + k) & 63]);
@@ -193,7 +196,14 @@ int main(int argc, char** argv) {
 			audio.attach(&wavRec);
 #ifdef SHOW_REGS
 		} else if (opt == "-b") {
-			g_break = (int)strtol(argv[++i], nullptr, 16);
+			{
+				std::string b = argv[++i];
+				auto d = b.find('-');
+				g_break = (int)strtol(b.substr(0, d).c_str(), nullptr, 16);
+				g_break_hi = d == std::string::npos ? g_break : (int)strtol(b.substr(d + 1).c_str(), nullptr, 16);
+			}
+		} else if (opt == "-S") {
+			g_smin = (int)strtol(argv[++i], nullptr, 16);
 		} else if (opt == "-Q") {
 			g_watchq = (int)strtol(val.c_str(), nullptr, 16);
 		} else if (opt == "-q") {

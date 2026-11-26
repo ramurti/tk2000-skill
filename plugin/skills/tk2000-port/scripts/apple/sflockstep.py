@@ -16,6 +16,10 @@ original; o porte recebe o que elas escreveram, traduzido, e as unidades carrega
     sflockstep.py SNAP.yaml CICLOS [-j SEG:x=..,y=..,b0=..] [-k SEG:TECLA] [-z] [-w ADDR]
 
 -w ADDR: mostra as escritas em ADDR (um endereço do Apple) nos dois, com o PC e o valor.
+-c NOME: confere as cores: cada byte escrito na tela do porte tem de ser o esperado (o do original
+com sfrelocs.COLOR_MAP dentro da janela da cabine, src/janela-mask.bin; o bit 7 desligado nos bytes
+preto/branco da moldura à esquerda da janela; o resto igual). As diferenças, por instrução que
+escreveu, vão para build/cores-check-NOME.txt.
 """
 import os, sys
 from collections import deque
@@ -161,6 +165,158 @@ def build_port(ao, pt, U):
     return loaded, code, lc1
 
 
+def _bw(v):
+    """preto/branco com o bit 7: nenhum ponto isolado"""
+    return v & 0x80 and all(((v >> k) & 1) == 0 or (k > 0 and (v >> (k - 1)) & 1) or (k < 6 and (v >> (k + 1)) & 1)
+                            for k in range(7))
+
+
+def _yx(x):
+    o = x & 0x1FFF
+    r = o & 0x7F
+    return (r // 40) * 64 + ((o >> 7) & 7) * 8 + (o >> 10), r % 40
+
+
+class ColorCheck:
+    """-c: a tela do porte contra a tela esperada (o original com as cores do TK2000)"""
+    def __init__(self, ao, pt, mo, mp, t0):
+        from sfrelocs import COLOR_MAP
+        from sftaint import JANELA
+        from collections import Counter
+        self.ao, self.pt, self.mo, self.mp, self.t0 = ao, pt, mo, mp, t0
+        self.cmap, self.jan = COLOR_MAP, JANELA
+        self.pending = {}                       # endereço do Apple -> (pc original, pc porte)
+        self.hits = {}                          # (classe, pc original, pc porte) -> [n, posições, exemplo]
+        self.bad = {}                           # endereço -> classe, na tela agora
+        import sfcores
+        self.sc = sfcores.Screens(ao.ram)
+        self.sc.update()                        # o ponto de partida: as telas já com as cores do TK2000
+        for x in range(0x2000, 0x6000):         # (no disco a tela do título vem inteira traduzida; aqui
+            if (x & 0x7F) < 0x78:               # a memória do AppleWin só bate com ela em parte)
+                pt.ram[x if x < 0x4000 else x + 0x6000] = self.sc.expect(x, ao.ram[x])
+        self.n = 0
+        wo, wp = ao.write, pt.write
+
+        def cwo(x, v):
+            if 0x2000 <= x < 0x6000 and (x & 0x7F) < 0x78:
+                self.pending[x] = (mo.pc, self.pending.get(x, (0, 0))[1])
+            wo(x, v)
+
+        def cwp(x, v):
+            ax = x if 0x2000 <= x < 0x4000 else x - 0x6000 if 0xA000 <= x < 0xC000 else None
+            if ax is not None and (ax & 0x7F) < 0x78:
+                self.pending[ax] = (self.pending.get(ax, (0, 0))[0], mp.pc)
+            wp(x, v)
+        ao.write, pt.write = cwo, cwp
+
+    def cabine(self):
+        self.sc.update()
+
+    def expect(self, x, vo):
+        return self.sc.expect(x, vo)
+
+    def classify(self, x):
+        vo = self.ao.ram[x]
+        vp = self.pt.ram[x if x < 0x4000 else x + 0x6000]
+        ex = self.expect(x, vo)
+        if vp == ex:
+            return None, vo, vp
+        if ex & 0x7F == vp & 0x7F and vo not in (0xD5, 0xAA, 0x2A, 0x55):
+            return 'bit7', vo, vp
+        if vo not in (0xD5, 0xAA, 0x2A, 0x55) and not _bw(vo):
+            return 'mistura', vo, vp            # figura sobre céu/chão já trocados (não se julga)
+        if vp == vo:
+            return 'falta troca', vo, vp
+        if ex == vo:
+            return 'troca a mais', vo, vp
+        return 'outro', vo, vp
+
+    def flush(self):
+        """julga as escritas guardadas da página mostrada (a escondida ainda está sendo desenhada)"""
+        self.cabine()
+        b = 0x4000 if self.ao.page2 else 0x2000
+        done = [x for x in self.pending if (x >= 0x4000) == (b == 0x4000)]
+        for x in done:
+            po, pp = self.pending.pop(x)
+            c, vo, vp = self.classify(x)
+            if c is None:
+                self.bad.pop(x, None)
+                continue
+            self.bad[x] = c
+            h = self.hits.setdefault((c, po, pp), [0, set(), None])
+            h[0] += 1
+            h[1].add(x)
+            if h[2] is None:
+                h[2] = (x, vo, vp, (self.mo.processorCycles - self.t0) / 1020484)
+
+    def full(self, why):
+        self.cabine()
+        n = {}
+        for x in range(0x2000, 0x6000):
+            if (x & 0x7F) >= 0x78:
+                continue
+            c = self.classify(x)[0]
+            if c:
+                n[c] = n.get(c, 0) + 1
+        if n:
+            print('%10d cores depois de %s: %s' % (self.mo.processorCycles, why, n))
+
+    def tkimg(self, get):
+        """a página mostrada como no TK2000: pares de pontos a partir de x = 0, a paleta do byte
+        da esquerda (0: 10 verde, 01 azul; 1: 10 ciano, 01 vermelho)"""
+        from PIL import Image
+        img = Image.new('RGB', (280, 192))
+        px = img.load()
+        base = 0x4000 if self.ao.page2 else 0x2000
+        C = {(0, 1, 0): (20, 200, 40), (0, 0, 1): (40, 80, 255), (1, 1, 0): (20, 207, 253), (1, 0, 1): (255, 60, 40)}
+        for y in range(192):
+            a = base + (y & 7) * 0x400 + ((y >> 3) & 7) * 0x80 + (y >> 6) * 0x28
+            bits, pal = [], []
+            for k in range(40):
+                b = get(a + k)
+                for j in range(7):
+                    bits.append((b >> j) & 1)
+                    pal.append(b >> 7)
+            for x in range(0, 280, 2):
+                l, r = bits[x], bits[x + 1]
+                c = (255, 255, 255) if l and r else (0, 0, 0) if not (l or r) else C[(pal[x], l, r)]
+                px[x, y] = px[x + 1, y] = c
+        return img
+
+    def shot(self, path):
+        from PIL import Image
+        self.cabine()
+        ex = self.tkimg(lambda x: self.expect(x, self.ao.ram[x]))
+        po = self.tkimg(lambda x: self.pt.ram[x if x < 0x4000 else x + 0x6000])
+        df = Image.new('RGB', (280, 192))
+        a, b, d = ex.load(), po.load(), df.load()
+        for y in range(192):
+            for x in range(280):
+                d[x, y] = (255, 0, 255) if a[x, y] != b[x, y] else tuple(v // 3 for v in a[x, y])
+        out = Image.new('RGB', (280 * 3 + 16, 192), (60, 60, 60))
+        for k, im in enumerate((ex, po, df)):
+            out.paste(im, (k * 288, 0))
+        out.resize((out.width * 2, out.height * 2), Image.NEAREST).save(path)
+
+    def report(self, name):
+        self.flush()
+        import sfrelocs
+        out = os.path.join(ROOT, 'build', 'cores-check-%s.txt' % name)
+        rows = sorted(self.hits.items(), key=lambda kv: (kv[0][0] == 'mistura', -len(kv[1][1])))
+        with open(out, 'w') as f:
+            for (c, po, pp), (n, pos, ex) in rows:
+                pg = {p & 0x1FFF for p in pos}
+                f.write('%-12s orig $%04X porte $%04X  %6d escritas %5d posições' % (c, po, pp, n, len(pg)))
+                if ex:
+                    y, col = _yx(ex[0])
+                    f.write('  ex. $%04X (y %d, col %d) %02X->%02X aos %.2f s' % (ex[0], y, col, ex[1], ex[2], ex[3]))
+                f.write('\n')
+        tot = {}
+        for (c, _, _), (n, pos, _) in rows:
+            tot[c] = tot.get(c, 0) + len(pos)
+        print('cores: %d instruções com diferença, posições por classe %s -> %s' % (len(rows), tot, out))
+
+
 def main():
     a = sys.argv[1:]
     dsk = open(dispkg.DSK, 'rb').read()
@@ -174,10 +330,14 @@ def main():
     end = t0 + int(a[1])
     zcheck = '-z' in a
     watch = {int(a[k + 1], 16) for k in range(len(a)) if a[k] == '-w'}
+    cname = a[a.index('-c') + 1] if '-c' in a else None
+    shots = sorted(float(v) for v in a[a.index('-S') + 1].split(',')) if '-S' in a else []
     ev = []
     i = 2
     while i < len(a):
-        if a[i] in ('-k', '-j'):
+        if a[i] in ('-w', '-c', '-S'):
+            i += 2
+        elif a[i] in ('-k', '-j'):
             t, _, v = a[i + 1].partition(':')
             ev.append((t0 + int(float(t) * 1020484), a[i], v)); i += 2
         else:
@@ -201,6 +361,20 @@ def main():
     spans = {a: (a + len(old), '') for d in (sfrelocs.CODE, sfrelocs.INCODE) for nm in d
              for a, (old, new) in d[nm].items() if len(old) > 1}   # trechos trocados
     spans.update(sfrelocs.SPANS)
+    want = {a: old for d in (sfrelocs.CODE, sfrelocs.INCODE) for nm in d for a, (old, new) in d[nm].items()}
+    for d in sfrelocs.INPUT.values():
+        for x, io in d:
+            want[x] = None, io
+
+    def spanok(x):
+        """o trecho vale só se o original tem ali a instrução trocada (outro pacote pode estar no
+        mesmo endereço)"""
+        w = want.get(x)
+        if w is None:
+            return True
+        if isinstance(w, tuple):
+            return mo.memory[x + 1] | mo.memory[x + 2] << 8 == w[1]
+        return bytes(mo.memory[x + k] for k in range(len(w))) == w
     print('unidades carregadas:', ' '.join(sorted(loaded)), '| banco 1:', lc1)
     pt.joy, pt.btn = ao.joy, ao.btn                     # o mesmo joystick
 
@@ -218,6 +392,8 @@ def main():
                 print('%10d porte    $%04X <- $%02X em $%04X' % (mp.processorCycles, x, v, mp.pc))
             wp(x, v)
         ao.write, pt.write = wwo, wwp
+    if cname:
+        ck = ColorCheck(ao, pt, mo, mp, t0)
     hist = deque(maxlen=40)
     seen = set()
     steps = 0
@@ -298,17 +474,27 @@ def main():
             for r in ('a', 'x', 'y', 'sp', 'p', 'processorCycles'):
                 setattr(mp, r, getattr(mo, r))
             mp.pc = pcmap(mo.pc)
+            scr = sorted({x >> 8 for region, x in writes if region == 'main' and 0x2000 <= x < 0x6000})
+            if scr:
+                print('%10d carga na tela: páginas %s' % (mo.processorCycles, ' '.join('%02X' % p_ for p_ in scr)))
             print('%10d carga: %s (trilhas %s)' % (mo.processorCycles, ' '.join(names) or '?',
                                                    ','.join(str(t) for c, t in ao.track_log[-12:])))
+            if cname:
+                ck.full('carga ' + ' '.join(names))
             continue
         hist.append((mo.pc, mp.pc))
         pt.ram[sfrelocs.KEY] = ao.key                   # a entrada do porte: a mesma do original
         pt.ram[sfrelocs.BTN0] = 0x80 if ao.btn[0] else 0
         pt.ram[sfrelocs.BTN1] = 0x80 if ao.btn[1] else 0
-        if mo.pc in spans:                              # atravessa o trecho trocado nos dois
+        if mo.pc in spans and spanok(mo.pc):            # atravessa o trecho trocado nos dois
             e, sync = spans[mo.pc]
+            s0, n0 = mo.pc, 0
             while mo.pc != e:
                 mo.step()
+                n0 += 1
+                if n0 == 2000000:
+                    print('trecho $%04X-$%04X: o original não chega ao fim (em $%04X)' % (s0, e, mo.pc))
+                    return 1
             while mp.pc != pcmap(e):
                 mp.step()
             for r in sync:
@@ -318,7 +504,15 @@ def main():
             mo.step()
             mp.step()
         steps += 1
+        if cname and steps % 3000 == 0 and ck.pending:
+            ck.flush()
+        if cname and shots and mo.processorCycles - t0 >= shots[0] * 1020484:
+            sp_ = os.path.join(ROOT, 'build', 'cores-check-%s-%05.2f.png' % (cname, shots.pop(0)))
+            ck.shot(sp_)
+            print('captura', sp_)
         if mp.pc != pcmap(mo.pc) or mp.sp != mo.sp:
+            if cname:
+                ck.report(cname)
             print('DIVERGIU no ciclo %d (%.2f s): original $%04X, porte $%04X (esperado $%04X)' % (
                 mo.processorCycles, (mo.processorCycles - t0) / 1020484, mo.pc, mp.pc, pcmap(mo.pc)))
             for o, p in list(hist)[-14:]:
@@ -339,6 +533,8 @@ def main():
                 if x in code or x in owned or 0x0100 <= x < 0x0200 or (lc1 == "t13" and FIG_HI <= x < FIG_HI + 0xE000 - FIGSPLIT):
                     continue
                 vo, vp = ao.ram[x], pt.ram[reloc(x)]
+                if 0x2000 <= x < 0x6000 and (vp == sfrelocs.COLOR_MAP.get(vo) or vp == vo & 0x7F):
+                    continue                            # as cores do TK2000 (-c confere)
                 if vo != vp and not moved(vo, vp):
                     diffs.append((x, vo, vp))
             for x in range(0xE000, 0x10000):
@@ -354,6 +550,8 @@ def main():
                     mo.processorCycles, (mo.processorCycles - t0) / 1020484, len(diffs),
                     ' '.join('$%04X:%02X/%02X' % d for d in new[:20])))
     print('nenhuma divergência até o ciclo %d (%.1f s)' % (mo.processorCycles, (mo.processorCycles - t0) / 1020484))
+    if cname:
+        ck.report(cname)
     return 0
 
 

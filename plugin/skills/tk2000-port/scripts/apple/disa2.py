@@ -59,6 +59,9 @@ def coverage(name, base, n):
     return cov
 
 
+EXTERNAL = {}                               # unidade -> destinos de JSR/JMP fora dela
+
+
 def disassemble(name, base, data, seeds=(), tk=None, allow=None, inline=None):
     """allow(a): se dado, só aceita instruções cujos bytes todos ele permite (ex.: os buracos da tela).
     inline: {destino de JSR: n}: sub-rotinas com n bytes de parâmetros depois do JSR (o código continua
@@ -166,6 +169,8 @@ def disassemble(name, base, data, seeds=(), tk=None, allow=None, inline=None):
             if c in code and code[c][2] > k:
                 inside[lab] = (c, k)
     labels |= {c for c, k in inside.values()}
+    EXTERNAL[name] = {i[3] for c, i in code.items()     # saltos para fora: pontos de entrada de outras
+                      if i[0] in ('JSR', 'JMP') and i[1] == 'abs' and not base <= i[3] < end}   # unidades
     lines = ['; Kung Fu Master (Data East, 1985), Apple II: arquivo %s ($%04X-$%04X)' % (name, base, end - 1),
              '; gerado por tools/disa2.py: %d instruções executadas no emulador, mais %d por um rastreio estático'
              % (len(covered & set(code)), len(code) - len(covered & set(code))), '']

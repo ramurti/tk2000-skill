@@ -197,6 +197,34 @@ unidades na versão TK2000). Aprendido:
 - O lockstep não roda as cargas no porte: um erro no destino das páginas ou no carregador só aparece
   no emulador do TK2000 (harness com ponto de parada por PC e vigia de byte).
 
+### 9.6 Cores e código não medido (Sky Fox, nov/2026)
+
+- **Trocar cores de Apple no TK2000 depende da coluna.** Os padrões de preenchimento do Apple
+  (céu `$D5`/`$AA`, chão `$2A`/`$55`) saem ciano e azul no TK2000 (pares de pontos contados de x = 0,
+  paleta do byte da esquerda). Para céu azul e chão verde: pares `$D5`→`$2A`, `$2A`→`$55`; ímpares
+  `$AA`→`$55`, `$55`→`$2A`. O mesmo valor na outra coluna é outra cor (o vermelho do logo é `$AA` nas
+  pares): uma troca só pelo valor estraga o vermelho (vira verde) e parece "recorte".
+- **Onde trocar**: por tipo de tela, reconhecido pela parte de baixo (painel do voo, rodapé do
+  título, textos do menu); na cabine, só dentro de uma máscara da janela. Desligar o bit 7 dos bytes
+  preto/branco logo à esquerda da janela tira os "degraus" ciano da moldura.
+- **De onde vêm os bytes**: rastreio de origem (`sftaint.py --cores`) julgando cada escrita só
+  quando a página aparece (a escondida ainda está sendo desenhada: o painel que diz o tipo da tela
+  pode vir depois) e anotando a unidade da origem **na hora da escrita** (as cargas trocam o pacote
+  do endereço no meio do trecho). Decidir por maioria dos usos (≥ 60%): bordas de máscara e colunas
+  trocadas de vez em quando fazem quase todo byte ter algum uso "fora". Imediatos reescritos pelo
+  próprio jogo (cor alternada por coluna) existem: comparar com o valor do disco, não o de agora.
+- **Conferência de cores no lockstep** (`sflockstep.py -c`): cada byte escrito na tela do porte contra
+  o esperado; começar com as telas já traduzidas (o estado do AppleWin só bate em parte com a tela
+  traduzida do disco); "mistura" (figura sobre fundo trocado) não é erro.
+- **Imagens compactadas** (`$FE`, contagem, valor): a marca e a contagem nunca são cores; mais simples
+  refazer a imagem inteira com a regra de cores (`sfstream.py`), cabendo no mesmo espaço.
+- **Código que nenhuma medição executou fica sem relocar e trava o jogo** (Sky Fox: uma rotina do rB0
+  chamada de um buraco da tela, só no jogo pelo menu). Faça o desmontador seguir os JSR/JMP de uma
+  unidade para as sempre residentes, inclusive os do código dos buracos (relocado à parte), como
+  pontos de entrada. Uma mudança de ritmo (ex.: varrer o teclado menos vezes) pode expor um defeito
+  assim: é o caminho, não o ritmo. O executor sem janela tem `-b LO-HI` (parar numa faixa) e `-S VAL`
+  (parar quando a pilha passa de VAL) para achar a entrada no lixo.
+
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
 O primeiro porte de Apple II (§9): um disco DOS 3.3 crackeado, o código original rodando sem
