@@ -21,11 +21,14 @@ RUNS = {
     'A22': 'sc1t/snap-50.yaml', 'B': 'end1/snap-62.yaml', 'B2': 'end1/snap-200.yaml',
     'L1': 'land1/snap-96.yaml', 'D128': 'snaps/snap-128.yaml', 'D128L': 'snaps/snap-128.yaml', 'MENU': 'snaps/snap-128.yaml', 'S2': 'sc2/snap-44.yaml', 'S3': 'sc3/snap-46.yaml',
     'V360': 'sc0/snap-73.yaml',         # voo baixo dando uma volta inteira (as montanhas de todos os rumos)
+    'V269': 'sc0/snap-40.yaml',         # do mapa da base ao voo baixo no rumo 269 (a beira esquerda da faixa das montanhas)
     'R1': 'long3/snap-89.yaml',         # fim de jogo e Restart (-p 4C7E=1): a abertura redesenhada
 }
 FILL = {0xD5, 0xAA, 0x2A, 0x55}
 MAIORIA = 0.6                           # a fração dos usos de um byte que decide a troca
 ABERTURA = ('t25', 't30', 't31', 't32', 't33')   # só os dados da abertura recebem um valor (os nomes)
+SO = {'R1': ABERTURA,                   # rastreios que só decidem algumas unidades: o Restart, a abertura;
+      'V269': ('t15', 't17')}           # o rumo 269, a faixa das montanhas (o resto já foi decidido e conferido)
 
 
 def main():
@@ -66,7 +69,7 @@ def main():
             if not nm:
                 sem['$%04X' % (a & 0xFF00)] += 1
                 continue
-            if run == 'R1' and nm not in ABERTURA:   # o Restart só decide os dados da abertura (o resto
+            if run in SO and nm not in SO[run]:   # o Restart só decide os dados da abertura (o resto
                 continue                        # tem usos de sobra nos outros rastreios)
             base = dispkg.PKGS[nm][1]
             if not 0 <= a - base < len(U.src[nm]):

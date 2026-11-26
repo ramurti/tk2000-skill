@@ -103,6 +103,15 @@ def swapbyte(v, c):
     return sum(nb[j] << j for j in range(7))
 
 
+def violeta(v, c):
+    """o byte v na coluna c tem pontos de cor só violeta (paleta 0, pontos isolados em x par)"""
+    if v & 0x80:
+        return False
+    b = [(v >> j) & 1 for j in range(7)]
+    cor = [j for j in range(7) if b[j] and not ((j > 0 and b[j - 1]) or (j < 6 and b[j + 1]))]
+    return bool(cor) and all((7 * c + j) % 2 == 0 for j in cor)
+
+
 def borda(o):
     """dentro da janela, ou um byte encostado nela na mesma linha (os bytes da moldura com um pedaço de
     céu ou chão: a troca ponto a ponto mantém o branco da moldura)"""

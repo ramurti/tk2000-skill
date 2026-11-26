@@ -91,6 +91,8 @@ def lado(ao, pt, path):
     out = Image.new('RGB', (280 * 2 + 8, 192), (255, 255, 255))
     out.paste(ap, (0, 0)); out.paste(tk, (288, 0))
     out.resize((out.width * 2, out.height * 2), Image.NEAREST).save(path)
+    pa, pk = (0x4000, 0xA000) if ao.page2 else (0x2000, 0x2000)   # e as duas telas (8K cada), para conferir bytes
+    open(path[:-4] + '.bin', 'wb').write(bytes(ao.ram[pa:pa + 0x2000]) + bytes(pt.ram[pk:pk + 0x2000]))
 
 
 def moved(vo, vp):

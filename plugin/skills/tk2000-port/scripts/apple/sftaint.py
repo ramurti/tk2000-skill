@@ -59,6 +59,7 @@ def main():
     for k in [k for k in range(len(a)) if a[k] == '-p']:  # -p ADDR=VAL: muda a memória do estado (hex)
         x_, _, v_ = a[k + 1].partition('=')
         ap.ram[int(x_, 16)] = int(v_, 16)
+    VIOLETA = '--violeta' in sys.argv
     if '--cores' in sys.argv:
         import sfcores, execpcs, dispkg
         from sflockstep import Units
@@ -85,8 +86,11 @@ def main():
                 w = 'troca%d' % (c & 1)          # a coluna decide a cor: guarda a paridade
             elif w == 'texto':                  # os nomes da abertura (letras brancas sobre o verde):
                 w = 'texto%02X%02X' % (v, dfr.sc.expect(x, v))   # o byte escrito e o do TK2000 ali
-            elif not (v in sfcores.FILL or sfcores.bw(v) or sfcores.swapbyte(v, c) != v):
+            elif not (v in sfcores.FILL or sfcores.bw(v) or sfcores.swapbyte(v, c) != v or
+                      (VIOLETA and sfcores.violeta(v, c))):
                 return                          # (escrito só por estar na parte dos nomes)
+            if w is None and VIOLETA and sfcores.JANELA[x & 0x1FFF] and sfcores.violeta(v, c):
+                w = 'violeta'                   # --violeta: as paredes do tubo (violeta do Apple)
             w = w or ('mantem' if v in sfcores.FILL or sfcores.swapbyte(v, c) != v else 'mbw')
             for org, un, val in orgs:           # a origem com a unidade e o valor da hora da escrita
                 hits[(org[0], org[1], un, val)][(pc_, w)] += 1
@@ -97,7 +101,7 @@ def main():
     cores = '--cores' in a
     ninst = [0]
     was_loading = [False]
-    a = [x for x in a if x not in ('--lc1', '--cores')]
+    a = [x for x in a if x not in ('--lc1', '--cores', '--violeta')]
     if lc1:
         global WATCH
         WATCH = lambda x: 0xD000 <= x < 0xE000 and ap.lc_read and ap.lc_bank == 1   # noqa: E731

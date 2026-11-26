@@ -105,6 +105,7 @@ CODE = {
 # A entrada (src/tklayer.s): o teclado e o joystick do Apple -> variáveis da camada
 KEY, BTN0, BTN1 = 0x6480, 0x6481, 0x6482
 KCLR, PDL8, PDL25, PREAD = 0x6206, 0x6209, 0x620C, 0x620F
+TKINV = 0x6221                          # a inversão dos anéis do tubo (ciano <-> verde)
 TKKEY, TKB0B, TKB1B, TKL0, TKL1 = 0x6212, 0x6215, 0x6218, 0x621B, 0x621E
 # a leitura (opcode, E/S do Apple) -> a rotina da camada que varre o teclado e devolve o mesmo
 _ROUT = {(0xAD, 0xC000): TKKEY, (0x2C, 0xC061): TKB0B, (0x2C, 0xC062): TKB1B,
@@ -124,6 +125,9 @@ INCODE = {                              # trocas de instrução da entrada
     't8': {0x894A: (b'\x2C\x70\xC0', _JMP(PDL8))},    # a leitura do joystick em laço
     't25': {0xD363: (b'\x2C\x70\xC0', _JMP(PDL25))},
     'rB0': {0xB020: (b'\x2C\x70\xC0', _JMP(PREAD))},  # a leitura simples
+    # os anéis das paredes do tubo de lançamento: no Apple a inversão dos pontos troca violeta e verde (e
+    # preto e branco); no TK2000 as paredes são ciano e verde, os mesmos pontos com outra paleta (TKINV)
+    't22': {0xA356: (b'\x49\xFF\x29\x7F', _JSR(TKINV) + b'\xEA')},   # eor #$FF / and #$7F -> jsr TKINV / nop
 }
 # para o lockstep: trechos trocados com outro fim (endereço do Apple) e os registradores a igualar
 SPANS = {0x894A: (0x896A, 'xy'), 0xD363: (0xD383, 'xy'), 0xB020: (0xB030, 'ay')}
@@ -332,6 +336,27 @@ def _cabine(y, c, v):
     return v
 
 
+TUBO_Y = 152                            # as paredes do tubo vão até a linha 151; abaixo, o painel (fica como está)
+
+
+def _tubo(toks):
+    """a imagem da pista: a regra da cabine, e as faixas violeta das paredes do tubo de lançamento viram
+    ciano (bit 7; escolha do dono do projeto, 26/11/2026). Dentro da janela; uma repetição decide de uma
+    vez (pela maioria das células), para o fluxo não crescer nem se partir"""
+    import sfcores as C
+    dentro = {}
+    for _, kind, cl, _ in toks:
+        if kind == 'run':
+            d = 2 * sum(C.JANELA[C.row(y) + c] for y, c in cl) > len(cl)
+            dentro.update((yc, d) for yc in cl)
+
+    def fn(y, c, v):
+        if y < TUBO_Y and C.violeta(v, c) and dentro.get((y, c), C.JANELA[C.row(y) + c]):
+            return v | 0x80
+        return _cabine(y, c, v)
+    return fn
+
+
 def patches(nm, base, data):
     out = {}
     ctl = stream_ctl(base, data)
@@ -346,7 +371,7 @@ def patches(nm, base, data):
         import sfstream
         st = STREAM_CABINE[nm]
         toks, end = sfstream.decode(data, base, st)
-        new = sfstream.recolor(toks, _cabine)
+        new = sfstream.recolor(toks, _tubo(toks))
         room = end
         while room < base + len(data) and data[room - base] == 0:
             room += 1

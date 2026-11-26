@@ -274,6 +274,14 @@ unidades na versão TK2000). Aprendido:
   dos rumos já voados; um rastreio numa volta inteira (360°) recoloriu o resto. Comece o lockstep
   antes de a tela ser desenhada: partindo do meio do voo, partes desenhadas uma vez só (o painel)
   vêm do estado salvo sem conversão e parecem defeitos.
+- **Uma inversão de pontos que troca duas cores no Apple** (os anéis do tubo do Sky Fox: `eor #$FF`,
+  violeta <-> verde, e preto <-> branco no mesmo laço) não tem equivalente no TK2000 quando as duas cores
+  escolhidas são os mesmos pontos com paletas diferentes (ciano e verde): troque a instrução por um `jsr` para
+  a camada, que inverte preto/branco e só troca o bit 7 nos bytes de cor. Numa imagem comprimida em
+  repetições, recolorir por célula pode partir repetições e mudar o tamanho do fluxo (o lockstep diverge):
+  decida cada repetição de uma vez.
+- **Um rastreio novo pode mexer no que já estava conferido**: limite-o às unidades do defeito (no Sky Fox,
+  `mkcores.SO`) e compare as telas lado a lado de antes e de depois, ponto a ponto, em todos os caminhos.
 
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
