@@ -20,6 +20,7 @@ RUNS = {
     'A': 'snaps/snap-170.yaml', 'A17': 'sc0/snap-73.yaml', 'A17j': 'sc0/snap-73.yaml',
     'A22': 'sc1t/snap-50.yaml', 'B': 'end1/snap-62.yaml', 'B2': 'end1/snap-200.yaml',
     'L1': 'land1/snap-96.yaml', 'D128': 'snaps/snap-128.yaml', 'D128L': 'snaps/snap-128.yaml', 'MENU': 'snaps/snap-128.yaml', 'S2': 'sc2/snap-44.yaml', 'S3': 'sc3/snap-46.yaml',
+    'V360': 'sc0/snap-73.yaml',         # voo baixo dando uma volta inteira (as montanhas de todos os rumos)
     'R1': 'long3/snap-89.yaml',         # fim de jogo e Restart (-p 4C7E=1): a abertura redesenhada
 }
 FILL = {0xD5, 0xAA, 0x2A, 0x55}

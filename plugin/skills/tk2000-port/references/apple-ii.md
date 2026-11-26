@@ -269,6 +269,11 @@ unidades na versão TK2000). Aprendido:
 - **A camada que varre o teclado só de vez em quando** guarda a última tecla durante uma carga de
   disco (ninguém lê): force uma varredura depois de cada carga, senão um FIRE de antes da carga é
   lido como novo.
+- **Telas lado a lado no mesmo instante** (`sflockstep.py -L`, `ladofolha.py`) acham o que os
+  rastreios não cobriram: uma faixa panorâmica (as montanhas do voo baixo) só tinha os bytes de céu
+  dos rumos já voados; um rastreio numa volta inteira (360°) recoloriu o resto. Comece o lockstep
+  antes de a tela ser desenhada: partindo do meio do voo, partes desenhadas uma vez só (o painel)
+  vêm do estado salvo sem conversão e parecem defeitos.
 
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 

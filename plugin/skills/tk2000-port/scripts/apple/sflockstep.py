@@ -15,6 +15,7 @@ original; o porte recebe o que elas escreveram, traduzido, e as unidades carrega
 
     sflockstep.py SNAP.yaml CICLOS [-j SEG:x=..,y=..,b0=..] [-k SEG:TECLA] [-z] [-w ADDR]
 
+-L NOME:T1,T2,...: salva build/lado/NOME-T.png, o Apple II (cores do Apple) | o TK2000, no mesmo instante.
 -p ADDR=VAL: muda um byte da memória do estado antes de começar (hex; ex.: -p 4C7E=1, um avião só).
 -w ADDR: mostra as escritas em ADDR (um endereço do Apple) nos dois, com o PC e o valor.
 -c NOME: confere as cores: cada byte escrito na tela do porte tem de ser o esperado (o do original
@@ -57,6 +58,39 @@ class Port(Ap):
             self.hi[addr - 0xC000] = v
         else:
             self.ram[addr] = v
+
+
+def tk_render(ram, page2):
+    """a página mostrada do porte como o TK2000 a mostra (página 2 em $A000): pares de pontos a partir
+    de x = 0, a paleta do byte da esquerda (0: 10 verde, 01 azul; 1: 10 ciano, 01 vermelho)"""
+    from PIL import Image
+    img = Image.new('RGB', (280, 192))
+    px = img.load()
+    base = 0xA000 if page2 else 0x2000
+    C = {(0, 1, 0): (20, 200, 40), (0, 0, 1): (40, 80, 255), (1, 1, 0): (20, 207, 253), (1, 0, 1): (255, 60, 40)}
+    for y in range(192):
+        a = base + (y & 7) * 0x400 + ((y >> 3) & 7) * 0x80 + (y >> 6) * 0x28
+        bits, pal = [], []
+        for k in range(40):
+            b = ram[a + k]
+            for j in range(7):
+                bits.append((b >> j) & 1)
+                pal.append(b >> 7)
+        for x in range(0, 280, 2):
+            l, r = bits[x], bits[x + 1]
+            c = (255, 255, 255) if l and r else (0, 0, 0) if not (l or r) else C[(pal[x], l, r)]
+            px[x, y] = px[x + 1, y] = c
+    return img
+
+
+def lado(ao, pt, path):
+    """-L: o Apple II (cores do Apple) | o TK2000 (o porte), o mesmo instante, em escala 2"""
+    from PIL import Image
+    ap = sfboot.hgr_img(bytes(ao.ram[:0x6000]), 2 if ao.page2 else 1)
+    tk = tk_render(pt.ram, ao.page2)
+    out = Image.new('RGB', (280 * 2 + 8, 192), (255, 255, 255))
+    out.paste(ap, (0, 0)); out.paste(tk, (288, 0))
+    out.resize((out.width * 2, out.height * 2), Image.NEAREST).save(path)
 
 
 def moved(vo, vp):
@@ -336,10 +370,12 @@ def main():
     watch = {int(a[k + 1], 16) for k in range(len(a)) if a[k] == '-w'}
     cname = a[a.index('-c') + 1] if '-c' in a else None
     shots = sorted(float(v) for v in a[a.index('-S') + 1].split(',')) if '-S' in a else []
+    lname, _, lt = a[a.index('-L') + 1].partition(':') if '-L' in a else ('', '', '')
+    lshots = sorted(float(v) for v in lt.split(',')) if lt else []   # -L NOME:T1,T2: Apple | TK2000
     ev = []
     i = 2
     while i < len(a):
-        if a[i] in ('-w', '-c', '-S', '-p'):
+        if a[i] in ('-w', '-c', '-S', '-p', '-L'):
             i += 2
         elif a[i] in ('-k', '-j'):
             t, _, v = a[i + 1].partition(':')
@@ -514,6 +550,11 @@ def main():
             sp_ = os.path.join(ROOT, 'build', 'cores-check-%s-%05.2f.png' % (cname, shots.pop(0)))
             ck.shot(sp_)
             print('captura', sp_)
+        if lshots and mo.processorCycles - t0 >= lshots[0] * 1020484:
+            os.makedirs(os.path.join(ROOT, 'build', 'lado'), exist_ok=True)
+            sp_ = os.path.join(ROOT, 'build', 'lado', '%s-%06.2f.png' % (lname, lshots.pop(0)))
+            lado(ao, pt, sp_)
+            print('lado a lado', sp_)
         if mp.pc != pcmap(mo.pc) or mp.sp != mo.sp:
             if cname:
                 ck.report(cname)
