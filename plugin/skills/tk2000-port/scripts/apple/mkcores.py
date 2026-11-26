@@ -20,9 +20,11 @@ RUNS = {
     'A': 'snaps/snap-170.yaml', 'A17': 'sc0/snap-73.yaml', 'A17j': 'sc0/snap-73.yaml',
     'A22': 'sc1t/snap-50.yaml', 'B': 'end1/snap-62.yaml', 'B2': 'end1/snap-200.yaml',
     'L1': 'land1/snap-96.yaml', 'D128': 'snaps/snap-128.yaml', 'D128L': 'snaps/snap-128.yaml', 'MENU': 'snaps/snap-128.yaml', 'S2': 'sc2/snap-44.yaml', 'S3': 'sc3/snap-46.yaml',
+    'R1': 'long3/snap-89.yaml',         # fim de jogo e Restart (-p 4C7E=1): a abertura redesenhada
 }
 FILL = {0xD5, 0xAA, 0x2A, 0x55}
 MAIORIA = 0.6                           # a fração dos usos de um byte que decide a troca
+ABERTURA = ('t25', 't30', 't31', 't32', 't33')   # só os dados da abertura recebem um valor (os nomes)
 
 
 def main():
@@ -63,14 +65,26 @@ def main():
             if not nm:
                 sem['$%04X' % (a & 0xFF00)] += 1
                 continue
+            if run == 'R1' and nm not in ABERTURA:   # o Restart só decide os dados da abertura (o resto
+                continue                        # tem usos de sobra nos outros rastreios)
             base = dispkg.PKGS[nm][1]
             if not 0 <= a - base < len(U.src[nm]):
                 dyn[nm] += 1
                 continue
             marks[(nm, a)].update(kinds)        # (o valor no disco: o jogo reescreve alguns imediatos
             vals[(nm, a)] = U.src[nm][a - base]  # de cor durante o desenho, coluna a coluna)
+    valor = defaultdict(dict)
     for (nm, a), kinds in marks.items():        # todas as marcas do byte, de todos os rastreios
         v = vals[(nm, a)]
+        tx = Counter({k[7:]: n for k, n in kinds.items()   # só as cópias diretas (o byte escrito é o
+                      if k.startswith('texto') and len(k) == 9 and int(k[5:7], 16) == v})   # da origem; o resto é mistura)
+        if tx:                                  # os nomes da abertura: o byte do TK2000, se um só vale
+            best, n = tx.most_common(1)[0]      # para a maioria dos usos (e não pinta céu/chão)
+            outros = sum(kinds.values()) - n
+            if n >= MAIORIA * (n + outros) and nm in ABERTURA:
+                if int(best, 16) != v and outros == 0:
+                    valor[nm][a] = int(best, 16)
+                continue                        # (senão: a regra de troca, sem contar as do texto)
         tr = kinds['troca0'] + kinds['troca1'] + kinds['troca']
         if tr:                                  # regra de tools/sfcores.py, pela maioria dos usos: as
             if tr >= MAIORIA * (tr + kinds['mantem']):   # bordas da máscara e as colunas trocadas de
@@ -87,10 +101,12 @@ def main():
            'troca': {k: sorted(v) for k, v in sorted(troca.items())},
            'bit7': {k: sorted(v) for k, v in sorted(bit7.items())},
            'conflito': {k: sorted(v) for k, v in sorted(conflito.items())},
-           'paridade': {k: {str(a): p for a, p in sorted(v.items())} for k, v in sorted(par.items())}}
+           'paridade': {k: {str(a): p for a, p in sorted(v.items())} for k, v in sorted(par.items())},
+           'valor': {k: {str(a): x for a, x in sorted(v.items())} for k, v in sorted(valor.items())}}
     json.dump(out, open(os.path.join(ROOT, 'src', 'cores.json'), 'w'), indent=1)
     print('troca:', {k: len(v) for k, v in sorted(troca.items())})
     print('bit 7:', {k: len(v) for k, v in sorted(bit7.items())})
+    print('valor (nomes da abertura):', {k: len(v) for k, v in sorted(valor.items())})
     print('conflito (janela e cockpit):', {k: len(v) for k, v in sorted(conflito.items())})
     if dyn:
         print('fora da unidade:', dict(dyn))

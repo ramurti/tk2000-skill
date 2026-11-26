@@ -55,6 +55,13 @@ def texto(row40):
     return [sum(new[k * 7 + j] << j for j in range(7)) for k in range(40)]
 
 
+# os bytes da paisagem do título que misturam a letra vermelha e o céu (paleta 1 com pontos das duas
+# cores: um byte do TK2000 só tem uma paleta): o byte que o próprio jogo compõe no Restart (o céu já com
+# as cores do TK2000 e as letras por cima, com máscara), medido no emulador do TK2000 (26/11/2026);
+# (valor do Apple, coluna & 1) -> byte do TK2000; os outros: swapbyte
+MISTO = {(0xAD, 1): 0xDD, (0xB5, 1): 0xF5, (0xBD, 1): 0xFD, (0xD6, 1): 0xD7, (0xDA, 0): 0xBA, (0xDA, 1): 0xDD, (0xDE, 1): 0xDF}
+
+
 def abertura(page):
     """uma página (8K) da tela do título como fica no TK2000"""
     out = bytearray(page)
@@ -64,7 +71,8 @@ def abertura(page):
             out[a:a + 40] = bytes(texto(page[a:a + 40]))
         else:
             for c in range(40):
-                out[a + c] = SWAP.get((page[a + c], c & 1), page[a + c])
+                v = page[a + c]                         # ponto a ponto (as bordas das letras)
+                out[a + c] = MISTO.get((v, c & 1)) or swapbyte(v, c)
     return out
 
 

@@ -15,7 +15,8 @@ motor do disco ligado (as cargas) não conta, e os bytes que a carga grava viram
 banco 1 ligado): de onde vêm os ponteiros para as figuras do banco 1.
 --cores: vigia as escritas de $D5/$AA/$2A/$55 (céu e chão) e de preto/branco com o bit 7 nas telas
 da cabine e da abertura, fora dos buracos: de onde vêm os valores, marcados pela regra de
-tools/sfcores.py: 'troca' / 'mantem' (céu e chão), 'bit7' / 'mbw' (moldura).
+tools/sfcores.py: 'troca' / 'mantem' (céu e chão), 'bit7' / 'mbw' (moldura), 'textoVVXX' (os nomes da
+abertura: VV é o byte escrito, XX o do TK2000 ali). -p ADDR=VAL muda um byte da memória do estado (hex).
 
 Saída: uma linha por origem: tipo, endereço, valor no fim, e quem usou (PC, modo, vezes).
 """
@@ -55,6 +56,9 @@ def main():
     m.cycletime = list(m.cycletime); m.cycletime[0xCE] = 6
     ap.mpu = m; ap.fire_from = 1 << 62; ap.disk_cycles = 32
     sfboot.load_applewin(ap, a[1])
+    for k in [k for k in range(len(a)) if a[k] == '-p']:  # -p ADDR=VAL: muda a memória do estado (hex)
+        x_, _, v_ = a[k + 1].partition('=')
+        ap.ram[int(x_, 16)] = int(v_, 16)
     if '--cores' in sys.argv:
         import sfcores, execpcs, dispkg
         from sflockstep import Units
@@ -79,6 +83,10 @@ def main():
             c = sfcores.col(x & 0x1FFF)
             if w == 'troca':
                 w = 'troca%d' % (c & 1)          # a coluna decide a cor: guarda a paridade
+            elif w == 'texto':                  # os nomes da abertura (letras brancas sobre o verde):
+                w = 'texto%02X%02X' % (v, dfr.sc.expect(x, v))   # o byte escrito e o do TK2000 ali
+            elif not (v in sfcores.FILL or sfcores.bw(v) or sfcores.swapbyte(v, c) != v):
+                return                          # (escrito só por estar na parte dos nomes)
             w = w or ('mantem' if v in sfcores.FILL or sfcores.swapbyte(v, c) != v else 'mbw')
             for org, un, val in orgs:           # a origem com a unidade e o valor da hora da escrita
                 hits[(org[0], org[1], un, val)][(pc_, w)] += 1
@@ -96,6 +104,8 @@ def main():
     ev = []
     i = 4
     while i < len(a):
+        if a[i] == '-p':
+            i += 2; continue
         t, _, v = a[i + 1].partition(':')
         ev.append((t0 + int(float(t) * 1020484), a[i], v)); i += 2
     ev.sort()
@@ -168,7 +178,8 @@ def main():
         if cores and not loading and mn in ('STA', 'STX', 'STY') and ea is not None and 0x2000 <= ea < 0x6000 \
                 and (ea & 0x7F) < 0x78:
             v = {'STA': m.a, 'STX': m.x, 'STY': m.y}[mn]
-            if v in sfcores.FILL or sfcores.bw(v) or sfcores.swapbyte(v, sfcores.col(ea & 0x1FFF)) != v:
+            if v in sfcores.FILL or sfcores.bw(v) or sfcores.swapbyte(v, sfcores.col(ea & 0x1FFF)) != v \
+                    or sfcores.line(ea & 0x1FFF) >= sfcores.TEXTO_Y:
                 orgs = {'STA': rt['a'], 'STX': rt['x'], 'STY': rt['y']}[mn]   # a unidade de cada origem
                 dfr.put(ea, v, (pc, [(o, unit(o[1]), rd(o[1])) for o in orgs]))   # agora, não na hora de julgar
         if cores and loading:

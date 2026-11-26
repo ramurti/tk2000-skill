@@ -290,6 +290,7 @@ COLORDATA = _cd.get('troca', {})       # padrões de céu e chão: COLOR_MAP
 BIT7DATA = _cd.get('bit7', {})         # preto/branco da moldura: bit 7 desligado
 CONFLITO = _cd.get('conflito', {})     # pintam céu/chão e outra cor: ficam como estão
 PARIDADE = {k: {int(a): p for a, p in v.items()} for k, v in _cd.get('paridade', {}).items()}
+VALOR = {k: {int(a): x for a, x in v.items()} for k, v in _cd.get('valor', {}).items()}   # os nomes da abertura
 
 
 # as imagens em fluxo da rotina rB0 $B229 (ldx/ldy # antes do jsr): coluna por coluna, de baixo
@@ -363,6 +364,9 @@ def patches(nm, base, data):
                 out[a] = nv
         elif data[a - base] in COLOR_MAP:
             out[a] = COLOR_MAP[data[a - base]]
+    for a, v in VALOR.get(nm, {}).items():      # os nomes da abertura redesenhada no Restart: o byte do
+        if a not in ctl and data[a - base] != v:   # TK2000 (letras brancas sobre o verde, sfcores.texto)
+            out[a] = v
     troca = set(COLORS.get(nm, [])) | set(COLORDATA.get(nm, []))
     for a in BIT7DATA.get(nm, []):
         v = data[a - base]

@@ -260,6 +260,15 @@ unidades na versão TK2000). Aprendido:
   conversão dos buracos residentes; sem ela o código desenha na área trocada e trava longe dali. Para
   achar quem estraga um byte no lockstep: vigie as escritas do porte nele (não as do Apple) e
   confira que a execução passou do ponto da divergência.
+- **Uma imagem redesenhada num caminho raro** (a abertura depois do Restart) precisa do mesmo
+  rastreio de cores dos outros: rastreie a partir desse caminho e deixe o rastreio decidir só as
+  unidades que só ele usa (as da abertura); para texto recolorido com contexto (letras brancas sobre
+  um fundo novo) guarde o byte esperado por destino e aplique-o só em cópias diretas. Bytes de
+  imagem que misturam duas paletas não têm troca certa: o jeito como o próprio jogo compõe a cena
+  (fundo já convertido, figura por cima com máscara) é uma boa referência.
+- **A camada que varre o teclado só de vez em quando** guarda a última tecla durante uma carga de
+  disco (ninguém lê): force uma varredura depois de cada carga, senão um FIRE de antes da carga é
+  lido como novo.
 
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
