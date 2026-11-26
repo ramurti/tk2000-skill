@@ -9,6 +9,8 @@ depuração HTTP dele, tira capturas das duas páginas hi-res e despeja a memór
 (precisa do /api/snapshot do applewin-key.patch); repetível.
 -j SEGUNDOS:x=N,y=N,b0=0|1,b1=0|1: joystick virtual (0-255, 128 = centro) no segundo emulado dado;
 sem ele o joystick fica centrado e solto (precisa do /api/joy do applewin-key.patch).
+--state ARQ.yaml: começa de um estado salvo do AppleWin (--load-state); os tempos de -t, -s, -k, -j e
+--snap passam a contar a partir dele.
 -k: aperta TECLA (um caractere, 'r' = RETURN, 'esc', 'sp' = espaço) no segundo emulado dado; precisa do
 sa2 com o /api/key (branch tk2000-tools do clone do AppleWin: references/apple-ii.md).
 
@@ -55,11 +57,13 @@ def main():
     dump = '--mem' in a
     keys = []
     snaps = []
+    state = None
     for i, x in enumerate(a):
         if x == '-t': secs = float(a[i + 1])
         if x == '-s': every = float(a[i + 1])
         if x == '--sa2': sa2 = a[i + 1]
         if x == '--snap': snaps.append(float(a[i + 1]))
+        if x == '--state': state = os.path.abspath(a[i + 1])
         if x == '-k':
             t, _, k = a[i + 1].partition(':')
             keys.append((float(t) * HZ, {'r': 0x0D, 'esc': 0x1B, 'sp': 0x20}.get(k, ord(k[0]) if k else 0x20)))
@@ -75,6 +79,8 @@ def main():
                 sys.exit('a porta %d já está em uso: feche o outro AppleWin (sa2) antes' % port)
     cmd = [sa2, '--headless', '--fixed-speed', '-c', os.path.join(out, 'applewin.yaml'),
            '-r', 'Configuration.Apple2 Type=1', '--d1', dsk]
+    if state:
+        cmd += ['--load-state', state]
     cmd += ['--wav-speaker', os.path.join(out, 'speaker.wav')] if wav else ['--no-audio']
     p = subprocess.Popen(cmd, stdout=open(os.path.join(out, 'sa2.log'), 'w'), stderr=subprocess.STDOUT)
     log = open(os.path.join(out, 'log.txt'), 'w')
@@ -84,19 +90,26 @@ def main():
                 get(64501, '/api/info'); break
             except Exception:
                 time.sleep(0.2)
+        base = 0                                               # com --state, os tempos contam do estado
+        while state:                                           # (carregado logo depois de o servidor subir)
+            base = get(64501, '/api/info')['cycles']['cumulative']
+            if base > HZ:
+                break
+            time.sleep(0.05)
+        keys = [(t + base, k) for t, k in keys]
         for t in snaps:
-            get(64504, '/api/snapshot?file=%s&at=%d' % (urllib.parse.quote(os.path.join(out, 'snap-%g.yaml' % t), safe=''), int(t * HZ)))
-        n, nxt = 0, every * HZ
+            get(64504, '/api/snapshot?file=%s&at=%d' % (urllib.parse.quote(os.path.join(out, 'snap-%g.yaml' % t), safe=''), int(t * HZ + base)))
+        n, nxt = 0, every * HZ + base
         while True:
             info = get(64501, '/api/info')
             cyc = info['cycles']['cumulative']
             while keys and cyc >= keys[0][0]:
                 if isinstance(keys[0][1], str):
                     get(64504, '/api/joy?' + keys[0][1])
-                    line = '      %6.1fs joystick %s' % (cyc / HZ, keys[0][1])
+                    line = '      %6.1fs joystick %s' % ((cyc - base) / HZ, keys[0][1])
                 else:
                     get(64504, '/api/key?code=%02X' % keys[0][1])
-                    line = '      %6.1fs tecla %r' % (cyc / HZ, chr(keys[0][1]))
+                    line = '      %6.1fs tecla %r' % ((cyc - base) / HZ, chr(keys[0][1]))
                 print(line, flush=True); log.write(line + '\n')
                 keys.pop(0)
                 if keys and keys[0][0] < cyc + 0.3 * HZ:            # o próximo evento espera 0,3 s emulados
@@ -118,10 +131,10 @@ def main():
             for x in range(288 if pg2 else 0, (288 if pg2 else 0) + 280):
                 for y in range(8): img.putpixel((x, y), (255, 200, 0))
             img.save(os.path.join(out, 'shot-%03d.png' % n))
-            line = '%03d %6.1fs ciclo %d PC %s pág%d %s' % (n, cyc / HZ, cyc, reg['PC'], 2 if pg2 else 1, info.get('videoMode'))
+            line = '%03d %6.1fs ciclo %d PC %s pág%d %s' % (n, (cyc - base) / HZ, cyc, reg['PC'], 2 if pg2 else 1, info.get('videoMode'))
             print(line, flush=True); log.write(line + '\n'); log.flush()
             n += 1; nxt += every * HZ
-            if cyc >= secs * HZ:
+            if cyc >= secs * HZ + base:
                 break
     finally:
         p.terminate(); p.wait()

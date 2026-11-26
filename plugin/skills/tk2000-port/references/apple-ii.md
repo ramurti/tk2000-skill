@@ -251,6 +251,15 @@ unidades na versão TK2000). Aprendido:
   sem realocar em 5 unidades (chamadas para `$4000-$5FFF` em trechos que nenhuma medição tinha
   visto). Os estados do AppleWin ao longo do menu não se repetem exatamente (o tempo do joystick
   varia): confira pela captura que o cenário é o esperado.
+- **Caminhos raros por um byte da memória**: para chegar ao fim de jogo, ache o contador de vidas
+  comparando a memória antes e depois de uma morte (inclua os buracos da tela: o Sky Fox guarda
+  variáveis lá) e mude-o no estado salvo (`execpcs.py`/`sflockstep.py -p ADDR=VAL`; no executor sem
+  janela `-w T:ADDR:VAL`). `awrun.py --state` começa o AppleWin de um estado salvo, sem passar pelo menu.
+- **Tabelas de modelos de código de buraco** que o jogo copia de volta para a tela num caminho raro
+  (o Restart do Sky Fox recopia os 64 buracos da página 2 a partir de dados do t32) precisam da mesma
+  conversão dos buracos residentes; sem ela o código desenha na área trocada e trava longe dali. Para
+  achar quem estraga um byte no lockstep: vigie as escritas do porte nele (não as do Apple) e
+  confira que a execução passou do ponto da divergência.
 
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 

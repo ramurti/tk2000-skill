@@ -5,7 +5,7 @@ lockstep), então uma medição pode atravessar fases sem misturar o código de 
 mesmo endereço. Grava build/use/exec-NOME.pkl ({unidade: set(PCs)}); o dispkg.py usa os PCs como
 pontos de entrada (SEEDS).
 
-    execpcs.py SNAP.yaml CICLOS NOME [-j SEG:x=..,y=..,b0=..] [-k SEG:TECLA]
+    execpcs.py SNAP.yaml CICLOS NOME [-j SEG:x=..,y=..,b0=..] [-k SEG:TECLA] [-p ADDR=VAL]
 """
 import os, pickle, sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -41,12 +41,17 @@ def main():
     m.cycletime = list(m.cycletime); m.cycletime[0xCE] = 6
     ao.mpu = m; ao.fire_from = 1 << 62; ao.disk_cycles = 32
     sfboot.load_applewin(ao, a[0])
+    for k in [k for k in range(len(a)) if a[k] == '-p']:  # -p ADDR=VAL: muda a memória do estado (hex)
+        x, _, v = a[k + 1].partition('=')
+        ao.ram[int(x, 16)] = int(v, 16)
     t0 = m.processorCycles
     end = t0 + int(a[1])
     name = a[2]
     ev = []
     i = 3
     while i < len(a):
+        if a[i] == '-p':
+            i += 2; continue
         t, _, v = a[i + 1].partition(':')
         ev.append((t0 + int(float(t) * 1020484), a[i], v)); i += 2
     ev.sort()

@@ -31,6 +31,7 @@ PG = {                                  # unidade: endereços de operandos $20 q
     't21': [0x742E, 0x757C],            # lda #$20 / sta $20: desenhar na página 2
     't25': [0xD05E],
     't29': [0xF57D, 0xF58F, 0xF8B1],    # $F8B1: linha + $20 (desenha nas duas páginas)
+    't32': [0xEAEB],                    # modelo do buraco $55F8 (troca de página), copiado para a página 2 no Restart
 }
 
 SMC_PG = [0xB3AD]                       # imediatos que o código reescreve com $20 (o deslocamento de
@@ -129,7 +130,8 @@ SPANS = {0x894A: (0x896A, 'xy'), 0xD363: (0xD383, 'xy'), 0xB020: (0xB030, 'ay')}
 SPANS.update({a: (a + 3, 'ap') for d in INPUT.values() for a, io in d})   # as leituras viradas jsr
 
 HOLES = {
-    't32': (0xEC00, 0xF000),            # voo A usa $EC00-$EDFF, voo B $EE00-$EFFF
+    't32': (0xEA00, 0xF000),            # $EA00-$EBFF: os 64 buracos da página 2, copiados de volta no Restart
+                                        # do fim de jogo; voo A usa $EC00-$EDFF, voo B $EE00-$EFFF
 }
 LEN = {'imp': 1, 'acc': 1, 'imm': 2, 'zpg': 2, 'zpx': 2, 'zpy': 2, 'inx': 2, 'iny': 2, 'rel': 2,
        'abs': 3, 'abx': 3, 'aby': 3, 'ind': 3}

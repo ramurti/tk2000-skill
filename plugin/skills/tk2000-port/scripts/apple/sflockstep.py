@@ -15,6 +15,7 @@ original; o porte recebe o que elas escreveram, traduzido, e as unidades carrega
 
     sflockstep.py SNAP.yaml CICLOS [-j SEG:x=..,y=..,b0=..] [-k SEG:TECLA] [-z] [-w ADDR]
 
+-p ADDR=VAL: muda um byte da memória do estado antes de começar (hex; ex.: -p 4C7E=1, um avião só).
 -w ADDR: mostra as escritas em ADDR (um endereço do Apple) nos dois, com o PC e o valor.
 -c NOME: confere as cores: cada byte escrito na tela do porte tem de ser o esperado (o do original
 com sfrelocs.COLOR_MAP dentro da janela da cabine, src/janela-mask.bin; o bit 7 desligado nos bytes
@@ -326,6 +327,9 @@ def main():
     mo.cycletime = list(mo.cycletime); mo.cycletime[0xCE] = 6
     ao.mpu = mo; ao.fire_from = 1 << 62; ao.disk_cycles = 32
     sfboot.load_applewin(ao, a[0])
+    for k in [k for k in range(len(a)) if a[k] == '-p']:  # -p ADDR=VAL: muda a memória do estado (hex)
+        x, _, v = a[k + 1].partition('=')
+        ao.ram[int(x, 16)] = int(v, 16)
     t0 = mo.processorCycles
     end = t0 + int(a[1])
     zcheck = '-z' in a
@@ -335,7 +339,7 @@ def main():
     ev = []
     i = 2
     while i < len(a):
-        if a[i] in ('-w', '-c', '-S'):
+        if a[i] in ('-w', '-c', '-S', '-p'):
             i += 2
         elif a[i] in ('-k', '-j'):
             t, _, v = a[i + 1].partition(':')
@@ -520,6 +524,8 @@ def main():
             print('   agora A %02X/%02X X %02X/%02X Y %02X/%02X S %02X/%02X' % (mo.a, mp.a, mo.x, mp.x, mo.y, mp.y, mo.sp, mp.sp))
             print('   pilha original', ' '.join('%02X' % ao.ram[0x100 + ((mo.sp - 2 + k) & 0xFF)] for k in range(10)))
             print('   pilha porte   ', ' '.join('%02X' % pt.ram[0x100 + ((mp.sp - 2 + k) & 0xFF)] for k in range(10)))
+            print('   bytes original $%04X:' % (mo.pc - 8), ' '.join('%02X' % mo.memory[(mo.pc - 8 + k) & 0xFFFF] for k in range(16)))
+            print('   bytes porte    $%04X:' % (mp.pc - 9), ' '.join('%02X' % mp.memory[(mp.pc - 9 + k) & 0xFFFF] for k in range(16)))
             return 1
         if zcheck:
             for x in range(0x100):
