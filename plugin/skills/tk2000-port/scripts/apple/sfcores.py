@@ -68,6 +68,40 @@ def abertura(page):
     return out
 
 
+def swapbyte(v, c):
+    """o byte v na coluna c como fica no TK2000: os pontos de cor isolados de céu (azul do Apple:
+    paleta 1, x par) e de chão (verde do Apple: paleta 0, x ímpar) passam para o padrão do TK2000
+    (azul: paleta 0, x ímpar; verde: paleta 0, x par) na mesma extensão; os brancos ficam. Para os
+    bytes inteiros dá SWAP; serve também para os bytes partidos nas bordas da moldura. Bytes com
+    outras cores (violeta, laranja) ou com as duas ficam como estão."""
+    b = [(v >> j) & 1 for j in range(7)]
+    white = [b[j] and ((j > 0 and b[j - 1]) or (j < 6 and b[j + 1])) for j in range(7)]
+    cor = [j for j in range(7) if b[j] and not white[j]]
+    if not cor:
+        return v
+    pal = v >> 7
+    par = [(c + j) & 1 for j in cor]            # x = 7c + j: a paridade do ponto
+    if pal == 0 and all(par):                   # verde do Apple -> verde do TK2000 (x par)
+        alvo = 0
+    elif pal == 1 and not any(par):             # azul do Apple -> azul do TK2000 (x ímpar)
+        alvo = 1
+    else:
+        return v
+    lo, hi = max(0, min(cor) - 1), min(6, max(cor) + 1)
+    nb = [1 if white[j] else 0 for j in range(7)]
+    for j in range(lo, hi + 1):
+        if not white[j] and (c + j) & 1 == alvo and not (j > 0 and white[j - 1]) and not (j < 6 and white[j + 1]):
+            nb[j] = 1
+    return sum(nb[j] << j for j in range(7))
+
+
+def borda(o):
+    """dentro da janela, ou um byte encostado nela na mesma linha (os bytes da moldura com um pedaço de
+    céu ou chão: a troca ponto a ponto mantém o branco da moldura)"""
+    c = col(o)
+    return JANELA[o] or (c > 0 and JANELA[o - 1]) or (c < 39 and JANELA[o + 1])
+
+
 def bw(v):
     """preto/branco com o bit 7: nenhum ponto isolado"""
     return bool(v & 0x80) and all(((v >> k) & 1) == 0 or (k > 0 and (v >> (k - 1)) & 1) or
@@ -114,7 +148,7 @@ class Screens:
             return None
         if k == 'abertura' and line(o) >= TEXTO_Y:
             return 'texto'
-        if (v, col(o) & 1) in SWAP and (JANELA[o] if k == 'cabine' else True):   # abertura e menu: tudo
+        if swapbyte(v, col(o)) != v and (borda(o) if k == 'cabine' else True):   # abertura e menu: tudo
             return 'troca'
         if k == 'cabine' and bw(v) and not JANELA[o] and JANELA[(o + 1) & 0x1FFF]:
             return 'bit7'
@@ -127,7 +161,7 @@ class Screens:
             a = x - col(x & 0x1FFF)
             return texto([self.ram[a + c] for c in range(40)])[col(x & 0x1FFF)]
         if w == 'troca':
-            return SWAP[(v, col(x & 0x1FFF) & 1)]
+            return swapbyte(v, col(x & 0x1FFF))
         if w == 'bit7':
             return v & 0x7F
         return v

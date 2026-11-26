@@ -19,7 +19,7 @@ RUNS = {
     'D164': 'snaps/snap-164.yaml', 'D161': 'snaps/snap-161.yaml', 'D167': 'snaps/snap-167.yaml',
     'A': 'snaps/snap-170.yaml', 'A17': 'sc0/snap-73.yaml', 'A17j': 'sc0/snap-73.yaml',
     'A22': 'sc1t/snap-50.yaml', 'B': 'end1/snap-62.yaml', 'B2': 'end1/snap-200.yaml',
-    'L1': 'land1/snap-96.yaml', 'D128': 'snaps/snap-128.yaml', 'D128L': 'snaps/snap-128.yaml', 'MENU': 'snaps/snap-128.yaml',
+    'L1': 'land1/snap-96.yaml', 'D128': 'snaps/snap-128.yaml', 'D128L': 'snaps/snap-128.yaml', 'MENU': 'snaps/snap-128.yaml', 'S2': 'sc2/snap-44.yaml', 'S3': 'sc3/snap-46.yaml',
 }
 FILL = {0xD5, 0xAA, 0x2A, 0x55}
 MAIORIA = 0.6                           # a fração dos usos de um byte que decide a troca
@@ -30,6 +30,7 @@ def main():
     U = L.Units(dsk)
     troca, bit7, sem, conflito = defaultdict(set), defaultdict(set), Counter(), defaultdict(set)
     marks, vals, dyn = defaultdict(Counter), {}, Counter()
+    par = defaultdict(dict)                     # a paridade da coluna em que o byte é escrito
     for run, f in RUNS.items():
         path = os.path.join(ROOT, 'build', 'taint', 'cores-%s.txt' % run)
         if not os.path.exists(path):
@@ -70,9 +71,11 @@ def main():
             vals[(nm, a)] = U.src[nm][a - base]  # de cor durante o desenho, coluna a coluna)
     for (nm, a), kinds in marks.items():        # todas as marcas do byte, de todos os rastreios
         v = vals[(nm, a)]
-        if kinds['troca']:                      # regra de tools/sfcores.py, pela maioria dos usos: as
-            if kinds['troca'] >= MAIORIA * (kinds['troca'] + kinds['mantem']):   # bordas da máscara e
-                troca[nm].add(a)                # as colunas trocadas de vez em quando não contam
+        tr = kinds['troca0'] + kinds['troca1'] + kinds['troca']
+        if tr:                                  # regra de tools/sfcores.py, pela maioria dos usos: as
+            if tr >= MAIORIA * (tr + kinds['mantem']):   # bordas da máscara e as colunas trocadas de
+                troca[nm].add(a)                # vez em quando não contam
+                par[nm][a] = 1 if kinds['troca1'] > kinds['troca0'] else 0
             else:
                 conflito[nm].add(a)             # pinta céu/chão e outra coisa: fica como está
         if kinds['bit7'] and kinds['bit7'] >= MAIORIA * (kinds['bit7'] + kinds['mbw']) and v not in FILL:
@@ -83,7 +86,8 @@ def main():
                          'e outra coisa (ficam). Gerado por tools/mkcores.py.',
            'troca': {k: sorted(v) for k, v in sorted(troca.items())},
            'bit7': {k: sorted(v) for k, v in sorted(bit7.items())},
-           'conflito': {k: sorted(v) for k, v in sorted(conflito.items())}}
+           'conflito': {k: sorted(v) for k, v in sorted(conflito.items())},
+           'paridade': {k: {str(a): p for a, p in sorted(v.items())} for k, v in sorted(par.items())}}
     json.dump(out, open(os.path.join(ROOT, 'src', 'cores.json'), 'w'), indent=1)
     print('troca:', {k: len(v) for k, v in sorted(troca.items())})
     print('bit 7:', {k: len(v) for k, v in sorted(bit7.items())})

@@ -78,7 +78,12 @@ FIGSPECIAL = {('t14', 0x9E0C): FIGCOPY, ('t9', 0xDDF9): FIGX}
 CODE = {
     't8': {0x801B: (b'\x0A', b'\x4A')},  # asl a -> lsr a
     'r40': {0x53F9: (b'\xE9', b'\x99'), 0x5479: (b'\xE8', b'\x98')},   # motor ligado / desligado
-    't7': {0x6C0B: (b'\xE9', b'\x99'), 0x6C34: (b'\xE8', b'\x98')},
+    't7': {0x6C0B: (b'\xE9', b'\x99'), 0x6C34: (b'\xE8', b'\x98'),
+           # o JSR do efeito no alto-falante ($6BB8) aponta para si mesmo até o interpretador de sons,
+           # que no Apple roda pela interrupção da Mockingboard, preenchê-lo; o TK2000 não tem essa
+           # interrupção e o jogo entrava em recursão sem fim (Plane Training, no lançamento). Começa
+           # com $6BD1, o valor mais comum nos estados do AppleWin (provisório: etapa de sons)
+           0x6BB9: (b'\xB8\x6B', b'\xD1\x6B')},
     't32': {0xEA29: (b'\xE8', b'\x98'), 0xEBE1: (b'\xE9', b'\x99')},   # modelos do motor para os buracos
     't9': {0x9100: (b'\x0A', b'\x4A')},  # asl a -> lsr a
     'rB0': {
@@ -282,6 +287,7 @@ _cd = __import__('json').load(open(_cj)) if _os.path.exists(_cj) else {}
 COLORDATA = _cd.get('troca', {})       # padrões de céu e chão: COLOR_MAP
 BIT7DATA = _cd.get('bit7', {})         # preto/branco da moldura: bit 7 desligado
 CONFLITO = _cd.get('conflito', {})     # pintam céu/chão e outra cor: ficam como estão
+PARIDADE = {k: {int(a): p for a, p in v.items()} for k, v in _cd.get('paridade', {}).items()}
 
 
 # as imagens em fluxo da rotina rB0 $B229 (ldx/ldy # antes do jsr): coluna por coluna, de baixo
@@ -326,6 +332,9 @@ def _cabine(y, c, v):
 def patches(nm, base, data):
     out = {}
     ctl = stream_ctl(base, data)
+    import disa2                                # as cores nunca mexem em bytes de instrução (só nos
+    ctl |= disa2.INSTR.get(nm, set())          # operandos dos imediatos): o jogo também lê alguns como
+                                                # dados (dispkg.py desmonta antes e preenche INSTR)
     for a, v in FIGCOR.get(nm, {}).items():     # figuras recoloridas: no lugar das listas de cores
         if data[a - base] != v:
             out[a] = v
@@ -344,7 +353,13 @@ def patches(nm, base, data):
                 out[st + k] = v
         ctl |= set(range(st, end))              # as listas do rastreio não mexem nela
     for a in (set(COLORS.get(nm, [])) - set(CONFLITO.get(nm, [])) | set(COLORDATA.get(nm, []))) - ctl:
-        if data[a - base] in COLOR_MAP:
+        p = PARIDADE.get(nm, {}).get(a)
+        if p is not None:                       # ponto a ponto, na paridade da coluna (sfcores.swapbyte)
+            import sfcores
+            nv = sfcores.swapbyte(data[a - base], p)
+            if nv != data[a - base]:
+                out[a] = nv
+        elif data[a - base] in COLOR_MAP:
             out[a] = COLOR_MAP[data[a - base]]
     troca = set(COLORS.get(nm, [])) | set(COLORDATA.get(nm, []))
     for a in BIT7DATA.get(nm, []):

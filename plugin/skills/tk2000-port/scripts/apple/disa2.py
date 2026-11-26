@@ -60,6 +60,7 @@ def coverage(name, base, n):
 
 
 EXTERNAL = {}                               # unidade -> destinos de JSR/JMP fora dela
+INSTR = {}                                  # unidade -> bytes de instrução que não são dados
 
 
 def disassemble(name, base, data, seeds=(), tk=None, allow=None, inline=None):
@@ -169,6 +170,8 @@ def disassemble(name, base, data, seeds=(), tk=None, allow=None, inline=None):
             if c in code and code[c][2] > k:
                 inside[lab] = (c, k)
     labels |= {c for c, k in inside.values()}
+    INSTR[name] = {c + k for c, i in code.items() for k in range(i[2])   # bytes de instrução (menos o
+                   if not (i[1] == 'imm' and k == 1)}                    # operando dos imediatos)
     EXTERNAL[name] = {i[3] for c, i in code.items()     # saltos para fora: pontos de entrada de outras
                       if i[0] in ('JSR', 'JMP') and i[1] == 'abs' and not base <= i[3] < end}   # unidades
     lines = ['; Kung Fu Master (Data East, 1985), Apple II: arquivo %s ($%04X-$%04X)' % (name, base, end - 1),

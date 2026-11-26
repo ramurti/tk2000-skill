@@ -228,6 +228,23 @@ unidades na versão TK2000). Aprendido:
   pontos de entrada. Uma mudança de ritmo (ex.: varrer o teclado menos vezes) pode expor um defeito
   assim: é o caminho, não o ritmo. O executor sem janela tem `-b LO-HI` (parar numa faixa) e `-S VAL`
   (parar quando a pilha passa de VAL) para achar a entrada no lixo.
+- **Bordas de uma máscara: troque ponto a ponto, não byte a byte.** Os bytes da moldura da janela
+  misturam o branco da moldura com um pedaço de céu ou chão; uma troca só dos bytes inteiros deixa
+  "quadradinhos" da cor antiga ao longo da borda. `sfcores.swapbyte(v, coluna)` move só os pontos de
+  cor isolados (azul do Apple: paleta 1, x par → azul do TK2000: paleta 0, x ímpar; verde do Apple:
+  paleta 0, x ímpar → x par) e mantém os brancos; vale dentro da máscara e nos bytes encostados nela.
+- **Um remendo de cor nunca toca bytes de instrução**, só o operando dos imediatos
+  (`disa2.INSTR`): uma troca mais larga (ponto a ponto) passou a pegar opcodes e endereços que por
+  acaso valiam `$2A`/`$55`, e o lockstep divergiu em 0,35 s.
+- **Som por IRQ da Mockingboard**: o motor de som do Sky Fox só tem um endereço de rotina preenchido
+  pela interrupção da placa; sem ela, um `JSR` aponta para si mesmo e a pilha estoura (o jogo trava
+  só no Plane Training). Preencha o operando no disco até refazer o som (`sfrelocs.CODE`).
+- **O lockstep não passa pelo carregador do TK2000**: ele monta as unidades direto na memória, então
+  um defeito no mapeamento de páginas da camada (`TKDEST`: um `bcc` que nunca saltava mandava páginas
+  de figura para cima de outra unidade) só aparece no emulador. Rode cada cenário também no emulador
+  de verdade.
+- **Rastreie também os lançamentos**: cada caminho de desenho (o céu pintado no lançamento alto) só
+  entra nas trocas se algum rastreio de cores o executou; parta de estados do AppleWin de cada um.
 
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 

@@ -223,8 +223,8 @@ class ColorCheck:
             return None, vo, vp
         if ex & 0x7F == vp & 0x7F and vo not in (0xD5, 0xAA, 0x2A, 0x55):
             return 'bit7', vo, vp
-        if vo not in (0xD5, 0xAA, 0x2A, 0x55) and not _bw(vo):
-            return 'mistura', vo, vp            # figura sobre céu/chão já trocados (não se julga)
+        if vo not in (0xD5, 0xAA, 0x2A, 0x55) and not _bw(vo) and ex == vo:
+            return 'mistura', vo, vp            # figura sobre céu/chão já trocados (não se julga)            # figura sobre céu/chão já trocados (não se julga)
         if vp == vo:
             return 'falta troca', vo, vp
         if ex == vo:

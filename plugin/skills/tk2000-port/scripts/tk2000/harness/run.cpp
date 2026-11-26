@@ -72,6 +72,8 @@ bool g_watch20 = false;
 int g_watchq = -1;
 std::vector<int> g_qok;
 #endif
+static std::vector<std::pair<int, int>> g_mems;		// -m: também mostradas quando para (-b, -Q, -S)
+static void dumpm();
 static void run(double secs) {
 	const uint64_t chunk = (uint64_t)(CPU_CLOCK * MS_TO_RUN / 1000.0);
 	const uint64_t end = cpu.getCumulativeCycles() + (uint64_t)(secs * CPU_CLOCK);
@@ -90,6 +92,7 @@ static void run(double secs) {
 					       (unsigned long long)cpu.getCumulativeCycles(), cpu.mRegA, cpu.mRegX, cpu.mRegY, cpu.mRegS);
 					for (int k = 0; k < 64; k++) printf(" %04X", hist[(hp + k) & 63]);
 					printf("\n");
+					dumpm();
 					exit(0);
 				}
 				extern int g_watchq; static int qlast = -1;
@@ -103,7 +106,8 @@ static void run(double secs) {
 						       cpu.mRegA, cpu.mRegX, cpu.mRegY, cpu.mRegS);
 						for (int k = 0; k < 64; k++) printf(" %04X", hist[(hp + k) & 63]);
 						printf("\n");
-						exit(0);
+						dumpm();
+					exit(0);
 					}
 					qlast = v;
 				}
@@ -115,7 +119,8 @@ static void run(double secs) {
 						       (unsigned long long)cpu.getCumulativeCycles(), pc);
 						for (int k = 0; k < 64; k++) printf(" %04X", hist[(hp + k) & 63]);
 						printf("\n");
-						exit(0);
+						dumpm();
+					exit(0);
 					}
 				}
 				hist[hp++ & 63] = pc;
@@ -164,6 +169,8 @@ static void dump(const std::vector<std::pair<int, int>>& mems) {
 	}
 }
 
+static void dumpm() { dump(g_mems); }
+
 struct SEvent { double t; int kind; std::string arg; SDL_Keycode code; };	// kind: 0 captura, 1 tecla apertada, 2 tecla solta, 3 poke
 
 int main(int argc, char** argv) {
@@ -174,7 +181,7 @@ int main(int argc, char** argv) {
 	}
 	double total = 30;
 	std::vector<SEvent> events;
-	std::vector<std::pair<int, int>> mems;
+	std::vector<std::pair<int, int>>& mems = g_mems;
 	for (int i = 2; i + 1 < argc; i += 2) {
 		std::string opt = argv[i], val = argv[i + 1];
 		if (opt == "-t") {
@@ -197,13 +204,13 @@ int main(int argc, char** argv) {
 #ifdef SHOW_REGS
 		} else if (opt == "-b") {
 			{
-				std::string b = argv[++i];
+				std::string b = val;
 				auto d = b.find('-');
 				g_break = (int)strtol(b.substr(0, d).c_str(), nullptr, 16);
 				g_break_hi = d == std::string::npos ? g_break : (int)strtol(b.substr(d + 1).c_str(), nullptr, 16);
 			}
 		} else if (opt == "-S") {
-			g_smin = (int)strtol(argv[++i], nullptr, 16);
+			g_smin = (int)strtol(val.c_str(), nullptr, 16);
 		} else if (opt == "-Q") {
 			g_watchq = (int)strtol(val.c_str(), nullptr, 16);
 		} else if (opt == "-q") {
@@ -212,7 +219,7 @@ int main(int argc, char** argv) {
 			g_watch20 = true;
 			i--;
 		} else if (opt == "-B") {
-			g_break_after = atof(argv[++i]);
+			g_break_after = atof(val.c_str());
 #endif
 		} else if (opt == "-w") {
 			auto c = val.find(':');

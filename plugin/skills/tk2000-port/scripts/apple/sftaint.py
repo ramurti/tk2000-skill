@@ -76,7 +76,10 @@ def main():
             if dfr.sc.of(x) is None:
                 return
             pc_, orgs = payload
-            w = w or ('mantem' if v in sfcores.FILL else 'mbw')
+            c = sfcores.col(x & 0x1FFF)
+            if w == 'troca':
+                w = 'troca%d' % (c & 1)          # a coluna decide a cor: guarda a paridade
+            w = w or ('mantem' if v in sfcores.FILL or sfcores.swapbyte(v, c) != v else 'mbw')
             for org, un, val in orgs:           # a origem com a unidade e o valor da hora da escrita
                 hits[(org[0], org[1], un, val)][(pc_, w)] += 1
     t0 = m.processorCycles
@@ -165,7 +168,7 @@ def main():
         if cores and not loading and mn in ('STA', 'STX', 'STY') and ea is not None and 0x2000 <= ea < 0x6000 \
                 and (ea & 0x7F) < 0x78:
             v = {'STA': m.a, 'STX': m.x, 'STY': m.y}[mn]
-            if v in sfcores.FILL or sfcores.bw(v):
+            if v in sfcores.FILL or sfcores.bw(v) or sfcores.swapbyte(v, sfcores.col(ea & 0x1FFF)) != v:
                 orgs = {'STA': rt['a'], 'STX': rt['x'], 'STY': rt['y']}[mn]   # a unidade de cada origem
                 dfr.put(ea, v, (pc, [(o, unit(o[1]), rd(o[1])) for o in orgs]))   # agora, não na hora de julgar
         if cores and loading:
