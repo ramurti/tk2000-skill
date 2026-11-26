@@ -216,6 +216,10 @@ unidades na versão TK2000). Aprendido:
 - **Conferência de cores no lockstep** (`sflockstep.py -c`): cada byte escrito na tela do porte contra
   o esperado; começar com as telas já traduzidas (o estado do AppleWin só bate em parte com a tela
   traduzida do disco); "mistura" (figura sobre fundo trocado) não é erro.
+- **Uma figura que some no fundo** (o violeta do Apple sai verde no TK2000, sobre o chão verde): não
+  troque byte a byte (os bytes da borda misturam figura e fundo: sai bloco ou franja colorida);
+  recolora ponto a ponto e remonte os bytes (`sfrecolor.py`), achando os dados pela rotina que copia
+  a figura para a tela (anotar origem → posição na tela) e mostrando as opções ao dono do projeto.
 - **Imagens compactadas** (`$FE`, contagem, valor): a marca e a contagem nunca são cores; mais simples
   refazer a imagem inteira com a regra de cores (`sfstream.py`), cabendo no mesmo espaço.
 - **Código que nenhuma medição executou fica sem relocar e trava o jogo** (Sky Fox: uma rotina do rB0

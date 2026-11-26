@@ -307,6 +307,9 @@ def stream_ctl(base, data):
     return ctl
 
 
+_tq = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'src', 'tanque.json')
+FIGCOR = {'t32': {int(a, 16): v for a, v in __import__('json').load(open(_tq))['bytes'].items()}} \
+    if _os.path.exists(_tq) else {}     # figuras recoloridas ponto a ponto (o tanque do menu, opção B)
 STREAM_CABINE = {'t22': 0xA5A0}        # a imagem da pista (dentro da cabine): refeita com as cores
 
 
@@ -323,6 +326,10 @@ def _cabine(y, c, v):
 def patches(nm, base, data):
     out = {}
     ctl = stream_ctl(base, data)
+    for a, v in FIGCOR.get(nm, {}).items():     # figuras recoloridas: no lugar das listas de cores
+        if data[a - base] != v:
+            out[a] = v
+        ctl.add(a)
     if nm in STREAM_CABINE:                     # a imagem inteira, pela regra da cabine (sfcores)
         import sfstream
         st = STREAM_CABINE[nm]
