@@ -245,6 +245,12 @@ unidades na versão TK2000). Aprendido:
   de verdade.
 - **Rastreie também os lançamentos**: cada caminho de desenho (o céu pintado no lançamento alto) só
   entra nas trocas se algum rastreio de cores o executou; parta de estados do AppleWin de cada um.
+- **Meça cada cenário com todas as teclas antes de entregar**: `execpcs.py` a partir do voo de cada
+  um dos cenários do menu (estados do AppleWin), 2 minutos apertando cada tecla e arma, mais um
+  trecho de ser abatido; os PCs viram pontos de entrada do desmontador. No Sky Fox isso achou código
+  sem realocar em 5 unidades (chamadas para `$4000-$5FFF` em trechos que nenhuma medição tinha
+  visto). Os estados do AppleWin ao longo do menu não se repetem exatamente (o tempo do joystick
+  varia): confira pela captura que o cenário é o esperado.
 
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
