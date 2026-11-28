@@ -196,3 +196,19 @@ disassembly dos tratadores de `LOAD`/`SAVE` do BASIC, tokens 182/183, tabela de 
   linha, `$00` termina o arquivo. O OPEN cria um arquivo que não existe (use VERIFY para testar
   se um arquivo existe); o WRITE por cima de um arquivo antigo deixa o fim antigo: OPEN, DELETE,
   OPEN antes de gravar.
+
+### 6.7 As instruções da entrega (Sky Fox, nov/2026)
+
+- O dono do projeto quis as instruções em português de dois jeitos: um markdown no repositório
+  (`dist/INSTRUCOES.md`) e um Google Docs separado, local. Sem acesso à conta Google, gere um
+  `.docx` fora do repositório (Arquivo > Abrir > Fazer upload converte) com `scripts/apple/mkinstrucoes.py`,
+  a partir dos mesmos `.md`, para as duas versões não divergirem.
+- Conteúdo que serviu: o que é preciso (TK2000 II Color 64K + interface de disco, ou o emulador), o
+  arquivo `.dsk`, os passos no emulador (F2 > Insert disk, `CALL 49408`), num TK2000 de verdade
+  (SDisk II ou disquete, passos genéricos), "deixe o disco na unidade", o que muda em relação ao
+  original, e um aviso honesto se o jogo só foi testado no emulador. Depois, o manual do jogador.
+- python-docx continua a numeração entre listas separadas: escreva os números à mão com recuo
+  pendente. Junte as linhas de continuação de um item (recuadas) antes de formatar, senão o
+  negrito que atravessa a quebra de linha sai literal. Renderize (soffice -> pdf -> pdftoppm) e olhe
+  as páginas antes de entregar.
+
