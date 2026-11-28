@@ -29,6 +29,9 @@ MAIORIA = 0.6                           # a fração dos usos de um byte que dec
 ABERTURA = ('t25', 't30', 't31', 't32', 't33')   # só os dados da abertura recebem um valor (os nomes)
 SO = {'R1': ABERTURA,                   # rastreios que só decidem algumas unidades: o Restart, a abertura;
       'V269': ('t15', 't17')}           # o rumo 269, a faixa das montanhas (o resto já foi decidido e conferido)
+FONTE = {'t7': range(0x6CE0, 0x6FE0)}    # a fonte das letras (rB0 $B0F6: 8 linhas de $60 caracteres): as letras são
+                                        # brancas; o computador da base as desenha dentro da janela da cabine e os
+                                        # pontos soltos delas pareciam céu/chão (trocados, "Tank" saía "Tam%")
 
 
 def main():
@@ -71,6 +74,8 @@ def main():
                 continue
             if run in SO and nm not in SO[run]:   # o Restart só decide os dados da abertura (o resto
                 continue                        # tem usos de sobra nos outros rastreios)
+            if a in FONTE.get(nm, ()):
+                continue
             base = dispkg.PKGS[nm][1]
             if not 0 <= a - base < len(U.src[nm]):
                 dyn[nm] += 1

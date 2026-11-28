@@ -283,6 +283,32 @@ unidades na versão TK2000). Aprendido:
 - **Um rastreio novo pode mexer no que já estava conferido**: limite-o às unidades do defeito (no Sky Fox,
   `mkcores.SO`) e compare as telas lado a lado de antes e de depois, ponto a ponto, em todos os caminhos.
 
+### 9.6b Letras e telas de texto (Sky Fox, nov/2026)
+
+- **A fonte não pode entrar na troca de cores.** As telas do computador da base têm o painel da cabine
+  embaixo, então o reconhecimento por tipo de tela as tomou por "cabine". Os pontos soltos das letras,
+  desenhados dentro da janela, foram confundidos com céu/chão e 62 bytes da fonte foram trocados
+  ("Tank" saía "Tam%"). A conferência de cores classificava isso como "mistura" e não acusava. Achado
+  renderizando a tela do porte em preto e branco (`bits` direto, sem cor): as letras erradas saltam à
+  vista. Exclua as faixas da fonte (`mkcores.FONTE`).
+- **Letras finas no TK2000 saem coloridas.** O branco exige os dois pontos de um par fixo, a partir de
+  x = 0; no Apple, quaisquer dois pontos vizinhos formam branco. Nenhuma cor do TK2000 é flexível como
+  esse branco: uma letra de uma cor só também exige a fonte redesenhada em pares, em duas versões (coluna
+  par e ímpar). O que funcionou foi o modo preto e branco (`$C051`) só nas telas de texto, trocado por
+  uma tecla (`scripts/apple/tkvideo.s`): três modos (texto em P&B, tudo em P&B, tudo colorido),
+  oferecidos como opções ao dono do projeto, que pediu as três numa tecla.
+- **Onde ligar o modo:** um `bit $C057` (HIRES do Apple, inútil no TK2000) no laço das telas vira
+  `jsr`. A variável de tela do jogo diz qual é a tela. Cada saída do laço (lançamento, abertura, Restart)
+  precisa devolver `$C050`: teste cada uma no emulador, porque uma esquecida deixa a tela seguinte em
+  preto e branco.
+- **Uma tecla nova:** uma posição livre da tabela de teclas do próprio jogo (tecla + endereço de
+  despacho) evita mexer na camada de teclado. Cuidado com as passagens de realocação que rodam depois
+  das trocas de código (a lista `HI` de bytes altos desfazia a troca). Se o laço for lento (0,14 s por
+  volta), force a varredura (`SCNT = 1`) a cada volta, senão um toque curto se perde.
+- **Memória livre de verdade é rara:** bytes que nenhuma medição tocou podem ser código raro (marcado
+  "rastreado") ou destino de cargas. A base da página da pilha serviu: o jogo começa em `$01FF` e
+  nenhuma medição passou de `$01EE`; o código vai no disco junto com a página da pilha.
+
 ### 9.7 Sons: a Mockingboard no alto-falante (Sky Fox, nov/2026)
 
 - **Meça os dois originais**: com e sem a placa o jogo pode soar completamente diferente (o Sky Fox sem placa
