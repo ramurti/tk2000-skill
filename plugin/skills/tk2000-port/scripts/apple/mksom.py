@@ -16,7 +16,7 @@ import os, pickle, subprocess, sys
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 AT, END = 0x6A93, 0x6B1A
 HZ = 1020484
-SR = float(sys.argv[1]) if len(sys.argv) > 1 else 4850.0      # chamadas de TURB por segundo (medido no emulador do TK2000)
+SR = float(sys.argv[1]) if len(sys.argv) > 1 else 4570.0      # chamadas de TURB por segundo ("Launch When Ready", medido no emulador do TK2000 em 27/11/2026; 4.850 antes do jsr AMOSTRA)
 
 PERIODOS = [76, 73, 70, 67, 64, 61, 58, 55, 52, 49]
 VOLUMES = [0, 3, 6, 9, 12, 15, 15, 15, 15, 15]
@@ -95,3 +95,4 @@ if __name__ == '__main__':
     monta('tkestalo', 0x6A19, 0x6A53)      # os estalinhos do voo: no caminho da Mockingboard do t7
     monta('tkzuumr', 0x6A53, 0x6A90)       # o "zuuum" da corrida no tubo: a volta do chiado, logo depois
     monta('tkzuum', 0x4FB2, 0x5000)        # e o resto no fim do t22 ($AFB2 no Apple)
+    monta('tkdesenho', 0x1EEB, 0x1F28)     # a turbina durante o desenho do tubo: no fim do r1A

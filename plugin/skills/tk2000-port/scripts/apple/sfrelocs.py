@@ -131,9 +131,10 @@ if _os.path.exists(_ts):
                    0x7521: (_JSR(0x7772), _JSR(TURB)),                     # Prepare To Launch: as duas esperas
                    0x7533: (_JSR(0x7772), _JSR(TURB)),
                    0x7508: (_JSR(0x7772), _JSR(TURB)),                     # a escolha da altitude
-                   # cada volta das esperas custa ~4,4 vezes mais que no Apple (a leitura do FIRE da camada e
-                   # uma amostra da turbina): as contagens divididas por 4, o texto pisca no tempo do Apple
-                   0x751E: (b'\x10', b'\x04'), 0x7530: (b'\x14', b'\x05')}
+                   # cada volta das esperas custa ~5,5 vezes mais que no Apple (a leitura do FIRE da camada, uma
+                   # amostra da turbina por jsr AMOSTRA, os ganchos dos tiques e do desenho): as contagens 16 e 20
+                   # viram 3 e 4, o texto pisca no tempo do Apple (~0,42 s; medido no emulador em 27/11/2026)
+                   0x751E: (b'\x10', b'\x03'), 0x7530: (b'\x14', b'\x04')}
     # para o lockstep: as duas esperas atravessadas inteiras, até uma das saídas (o fim da contagem ou o FIRE)
     SPANS_SOM = {0x7521: ((0x752C, 0x7549), 'xy'), 0x7533: ((0x753E, 0x7546), 'xy')}   # X, Y: as contagens
 else:
@@ -170,6 +171,19 @@ if _os.path.exists(_tz) and _os.path.exists(_tzr):
     CODE.setdefault('t22', {})[0xAFB2] = (_track(22)[0xFB2:0xFB2 + len(ZB)], ZB)
     CODE['t22'][0xA270] = (_JSR(0xA288), _JSR(0x4FB2))     # o endereço do TK2000: a troca vem depois da realocação
     SPANS_SOM[0xA270] = ((0xA273,), 'ap')     # A (o n antigo no original) e os flags acertados no fim da espera
+# a turbina durante o desenho da imagem do tubo (src/tkdesenho.s, no fim do r1A: zeros que nenhuma medição usa): a
+# chamada do desenho (t21 $7585) liga a marca; os dois laços do decodificador (rB0 $B26D, $B299) tocam uma amostra
+# por byte com a marca ligada
+_td = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'build', 'tk', 'tkdesenho.bin')
+if _os.path.exists(_td):
+    TDB = open(_td, 'rb').read()
+    TDRAW, GANCHO1, GANCHO2 = 0x1EEC, 0x1EFF, 0x1F10     # conferidos com .assert em src/tkdesenho.s
+    _res = open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'reference', 'resident-14s.bin'), 'rb').read()
+    CODE.setdefault('r1A', {})[0x1EEB] = (_res[0x1EEB:0x1EEB + len(TDB)], TDB)
+    CODE['t21'][0x7585] = (_JSR(0xB229), _JSR(TDRAW))
+    CODE.setdefault('rB0', {})[0xB26D] = (b'\xCA\xD0\xD3', _JMP(GANCHO1))   # dex / bne $B243
+    CODE['rB0'][0xB299] = (b'\xCA\xF0\xF6', _JMP(GANCHO2))                   # dex / beq $B292
+    SPANS_SOM.update({0x7585: ((0x7588,), 'ap'), 0xB26D: ((0xB243, 0xB270), 'p'), 0xB299: ((0xB29C, 0xB292), 'p')})
 
 
 INCODE = {                              # trocas de instrução da entrada

@@ -321,6 +321,16 @@ unidades na versão TK2000). Aprendido:
 - **Antes de trocar uma rotina, procure quem a reescreve**: a espera da corrida do Sky Fox vira, por código que se
   altera, a da volta ao tubo no pouso (`inc` no lugar de `dec`, outro alvo no `cmp`), um caminho que nenhuma medição
   rodou; a troca tem de cobrir as duas formas (ou devolver a original na que não interessa).
+- **"Livre" pelas medições de uso não basta**: elas não contam as cargas de disco, e o código em volta delas também
+  usa memória (o Sky Fox guarda a página zero em `$1F29-$1F3F` antes de cada carga). Procure no fonte todas as
+  referências ao trecho (`L1Fxx`, `$1Fxx,x`) e ponha um `.assert` no limite; o sintoma foi um travamento minutos
+  depois, na primeira carga.
+- **Som numa rotina compartilhada** (o decodificador de imagens, usado em todas as telas): ganchos que só tocam com
+  uma marca ligada pela chamada que interessa, e a altura do tom recalculada para o ritmo daquele laço (amostras por
+  segundo = bytes desenhados / tempo medido). Mudar a rotina de som muda também as esperas que já estavam afinadas:
+  meça de novo o tom (em vários trechos: um só pode enganar) e o pisca.
+- **Medir o tom**: o pico do espectro de um som de 1 bit com ruído engana (harmônicos); confira em vários trechos e
+  com a conta (incremento / 256 x amostras por segundo).
 - **Espaço**: o código que só roda com a placa (o tratador de interrupção, o caminho "placa achada") nunca roda
   no TK2000 e é o lugar natural do som novo; zeros no fim de um pacote também servem, conferindo que nada
   escreve ali; num pacote que muda de endereço no TK2000, monte no endereço do TK2000 (a troca de código entra

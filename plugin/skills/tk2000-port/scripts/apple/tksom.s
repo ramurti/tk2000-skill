@@ -40,7 +40,12 @@ TURB0:  lda     #$00
         rts
 
 ; no lugar de jsr $7772: uma amostra da turbina, depois a leitura do FIRE (preserva X e Y)
-TURB:   inc     TCL
+TURB:   jsr     AMOSTRA
+        jmp     FIRE
+
+; uma amostra da turbina (preserva X e Y; A muda): também no desenho do tubo (src/tkdesenho.s)
+AMOSTRA:
+        inc     TCL
         bne     @fase
         inc     TCH
         lda     TCH
@@ -86,4 +91,4 @@ TURB:   inc     TCL
         beq     @fim
         sta     LAST
         bit     SPKR
-@fim:   jmp     FIRE
+@fim:   rts
