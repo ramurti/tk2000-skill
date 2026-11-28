@@ -19,6 +19,7 @@
 ;   as saídas da base para $4AFB (abertura, CTRL+Q, CTRL+R, fim de jogo) e $D00C: REST1, REST2
 
 SCNT    = $64E9                 ; src/tklayer.s: o contador da varredura do teclado
+TKKEY   = $6212                 ; src/tklayer.s: varre (se SCNT chegar a 0) e devolve a tecla
 SCR     = $1D                  ; a tela do computador (0 mapa, 7/8 relatório, 9/10 ajuda, 11 placar...)
 DISP    = $7279                 ; t21: o despacho da tela $1D (Y = $1D)
 COLOR   = $C050
@@ -40,8 +41,11 @@ MODO:   .byte   0               ; $0115
 ULT:    .byte   0               ; $0116: a última tela (para voltar a ela depois do CTRL+C)
 
 VIDEO:  pha
-        lda     #1              ; a próxima leitura varre o teclado: cada volta deste laço leva até ~0,14 s
-        sta     SCNT            ; (placar) e a camada só varre a cada 8 leituras: um toque rápido se perdia
+        lda     #1              ; varre o teclado agora (os botões e o latch das teclas) e de novo na próxima
+        sta     SCNT            ; leitura: cada volta deste laço leva ~0,12-0,14 s e a camada só varre a cada
+        jsr     TKKEY           ; 8 leituras; outras leituras do laço gastavam a varredura pedida antes da do
+        lda     #1              ; botão (um FIRE de 0,3 s no mapa se perdia; teste das patentes, 28/11/2026)
+        sta     SCNT
         lda     SCR
         cmp     #5              ; a posição do CTRL+C: o despacho troca o modo e volta à tela de antes
         beq     @fim
@@ -92,4 +96,4 @@ REST1:  sta     COLOR
 REST2:  sta     COLOR
         jmp     MESMO
 
-        .assert * <= $0180, error, "tkvideo passa de $0180 (a pilha)"
+        .assert * <= $01A0, error, "tkvideo passa de $01A0 (a pilha: o jogo não passou de $01EE)"

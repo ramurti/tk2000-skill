@@ -67,12 +67,23 @@ X = 4
 INLINE = {0xB51B: 8,                    # jsr $B51B: 8 bytes de parâmetros embutidos (uma figura a desenhar)
           0xB06F: lambda b, a: 3 + b(a + 5)}   # jsr $B06F: posição (2), tamanho (1) e o texto
 SEEDS = {                               # código que não rodou nas medições, achado pelo lockstep
-    't8': [0x800B],                     # lda $227E / jsr $4BF8 (depois da troca do pacote de $A000)
-    't21': [0x70BF, 0x7425],            # logo depois da carga do briefing da demonstração (lockstep)
+    't8': [0x800B,                      # lda $227E / jsr $4BF8 (depois da troca do pacote de $A000)
+           0x853F, 0x855C],             # CTRL+P e CTRL+S em voo (tabela $8524): sem relocar, o CTRL+P com o
+                                        # piloto automático saltava para $5E78 (teste das teclas, 28/11/2026)
+    't21': [0x70BF, 0x7425,             # logo depois da carga do briefing da demonstração (lockstep)
+            0x7238, 0x7261],            # CTRL+S na base (tabela $7288) e o desvio dele
     # t25: trechos de código guardados como dados, copiados para $67AE e executados lá (a passagem
     # da abertura para a demonstração; tabelas $DBB8/$DBC7 = origem, $DBD6 = tamanho)
     't25': [0xDBE5, 0xDBEB, 0xDC36, 0xDCA5, 0xDD00, 0xDD51, 0xDD6D],
 }
+# as tabelas de entrada no começo dos pacotes (jmp, jmp, ...): todo destino é código, mesmo os que nenhuma
+# medição usou (a segunda página da ajuda da base, t20 $A640, ficava sem relocar; teste das teclas, 28/11/2026)
+for _nm, _v in {'t21': [0x7023, 0x7201, 0x7827, 0x7898, 0x70BF], 't19': [0x7010, 0x7158, 0x7487],
+                't20': [0xA2AE, 0xA0F0, 0xA1F2, 0xA649, 0xA6FC, 0xA724, 0xA1AC, 0xA631, 0xA640, 0xA958, 0xA990,
+                        0xA257, 0xA215],
+                't22': [0xA22F, 0xA21E], 't25': [0xD16A, 0xD1C3, 0xD15F, 0xD295, 0xD74A]}.items():
+    _at = {'t21': 0x7001}.get(_nm, PKGS[_nm][1])             # e os próprios jmp da tabela
+    SEEDS[_nm] = sorted(set(SEEDS.get(_nm, [])) | set(_v) | {_at + 3 * k for k in range(len(_v))})
 # o carregador de trilhas roda com o motor ligado (as medições não o marcam): as instruções vistas
 # numa carga no py65 (build/use/loader-pcs.pkl, a troca t22 -> t17 do voo A)
 import glob as _glob

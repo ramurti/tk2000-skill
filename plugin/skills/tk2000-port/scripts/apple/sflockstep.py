@@ -443,7 +443,7 @@ def main():
         while ev and mo.processorCycles >= ev[0][0]:
             _, kind, v = ev.pop(0)
             if kind == '-k':
-                ao.key = pt.key = ({'r': 0x0D, 'sp': 0x20, 'esc': 0x1B}.get(v, ord(v[0]))) | 0x80
+                ao.key = pt.key = ({'r': 0x0D, 'sp': 0x20, 'esc': 0x1B}.get(v, (ord(v[1].upper()) - 0x40) if v[0] == '^' and len(v) == 2 else ord(v[0]))) | 0x80   # ^P: CTRL+P
             else:
                 for kv in v.split(','):
                     k, _, n = kv.partition('=')

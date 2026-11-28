@@ -309,6 +309,28 @@ unidades na versão TK2000). Aprendido:
   "rastreado") ou destino de cargas. A base da página da pilha serviu: o jogo começa em `$01FF` e
   nenhuma medição passou de `$01EE`; o código vai no disco junto com a página da pilha.
 
+### 9.6c Teste final das teclas: o código que nenhuma medição executou (Sky Fox, nov/2026)
+
+O lockstep só prova os caminhos que percorre. Um teste no emulador do TK2000, tecla por tecla e
+situação por situação, achou quatro defeitos, três deles em código que nunca rodou nas medições.
+Esse código foi desmontado como dados e, por isso, não foi relocado:
+- **CTRL+P e CTRL+S** só aparecem pela tabela de teclas, e nenhuma medição os apertou. O CTRL+P com o
+  piloto automático saltava para um endereço do Apple (`jsr $5E78` em vez de `$BE78`) e travava. O
+  CTRL+S escrevia em `$45F8` em vez de `$A5F8`. Corrija semeando os destinos das tabelas de teclas e os
+  desvios deles (`dispkg.SEEDS`). Para provar, use `sflockstep -k 3:^P` (CTRL+letra) e `-k 3:esc`.
+- **Tabelas de entrada** (`jmp, jmp, ...` no começo dos pacotes): semeie os destinos **e as posições
+  dos próprios `jmp`**; semear só o destino deixa o `jmp` como dado. Depois procure, no código alcançado
+  só pelo rastreio, imediatos com cara de ponteiro (`#$40-$5F`, `#$A0-$BF` antes de `sta $31` ou
+  `ldy #hi / jsr`) e ponha os bytes altos na lista `HI`.
+- **Código que carrega trilhas que nenhuma medição leu** (o minijogo escondido do Sky Fox, na trilha 34)
+  não está no disco do porte. Pergunte ao dono do projeto se porta ou desativa: aqui, desativado,
+  tirando a tecla da tabela.
+- **Toques curtos perdidos:** se a camada só varre o teclado a cada N leituras e o laço é lento
+  (~120 ms), outras leituras do laço gastam a varredura pedida. Faça o gancho do laço varrer ele mesmo,
+  a cada volta.
+- Nem toda tecla "sem efeito" é defeito: veja a tabela de teclas do original. Por exemplo, Esc não
+  existe em voo, e a velocidade é ignorada durante a decolagem automática.
+
 ### 9.7 Sons: a Mockingboard no alto-falante (Sky Fox, nov/2026)
 
 - **Meça os dois originais**: com e sem a placa o jogo pode soar completamente diferente (o Sky Fox sem placa
