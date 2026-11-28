@@ -313,6 +313,14 @@ unidades na versão TK2000). Aprendido:
   `dey/dex` que encurta (a nave acelera); trocado por um som que faz o mesmo (o contador, o carry de saída) e gasta
   o mesmo tempo, a corrida não muda de ritmo. Conte os ciclos dos dois no py65 para cada valor do contador (o
   chiado custa mais quando o cone troca: calibre a média ponderada pelo tempo) e confira a duração no emulador.
+- **O som some quando o processador vai fazer outra coisa**: na placa o AY continua tocando sozinho durante uma
+  carga de disco ou um desenho longo; no TK2000 vira silêncio. Meça o que o original faz em cada buraco (no Sky Fox:
+  a carga do pacote do tubo e o desenho da imagem entre a turbina e o zuuum; o fim da corrida sem espera) e ofereça
+  o que custa tempo. Quando a espera some, o laço pode passar a chamá-la muito mais vezes (a cada ~10 ms): uma
+  "cauda" que diminui por chamada, não por quadro.
+- **Antes de trocar uma rotina, procure quem a reescreve**: a espera da corrida do Sky Fox vira, por código que se
+  altera, a da volta ao tubo no pouso (`inc` no lugar de `dec`, outro alvo no `cmp`), um caminho que nenhuma medição
+  rodou; a troca tem de cobrir as duas formas (ou devolver a original na que não interessa).
 - **Espaço**: o código que só roda com a placa (o tratador de interrupção, o caminho "placa achada") nunca roda
   no TK2000 e é o lugar natural do som novo; zeros no fim de um pacote também servem, conferindo que nada
   escreve ali; num pacote que muda de endereço no TK2000, monte no endereço do TK2000 (a troca de código entra
