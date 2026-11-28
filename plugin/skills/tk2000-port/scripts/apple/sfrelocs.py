@@ -159,6 +159,17 @@ if _os.path.exists(_te):
     CODE['t7'][0x6BD5] = (b'\x2C\x30\xC0', _JSR(ESTAL))
     CODE['r40'][0x45F8] = (_JMP(0x6BA5), _JMP(TICK))
     SPANS_SOM.update({0x45F8: ((0x6BA5,), 'p'), 0x6BB0: (0x6BB3, 'p'), 0x6BD5: (0x6BD8, 'p')})
+# o "zuuum" da corrida no tubo (src/tkzuum.s, opção C do dono do projeto): a espera de cada quadro da corrida
+# (t22 jsr $A288) vira jsr ZUUM, no fim do t22 (zeros no disco; $4FB2 no TK2000), que toca durante a mesma espera;
+# a volta do chiado (src/tkzuumr.s) no t7, depois dos estalinhos
+_tz = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'build', 'tk', 'tkzuum.bin')
+_tzr = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'build', 'tk', 'tkzuumr.bin')
+if _os.path.exists(_tz) and _os.path.exists(_tzr):
+    ZB, ZRB = open(_tz, 'rb').read(), open(_tzr, 'rb').read()
+    CODE['t7'][0x6A53] = (_track(7)[0xA53:0xA53 + len(ZRB)], ZRB)
+    CODE.setdefault('t22', {})[0xAFB2] = (_track(22)[0xFB2:0xFB2 + len(ZB)], ZB)
+    CODE['t22'][0xA270] = (_JSR(0xA288), _JSR(0x4FB2))     # o endereço do TK2000: a troca vem depois da realocação
+    SPANS_SOM[0xA270] = ((0xA273,), 'ap')     # A (o n antigo no original) e os flags acertados no fim da espera
 
 
 INCODE = {                              # trocas de instrução da entrada

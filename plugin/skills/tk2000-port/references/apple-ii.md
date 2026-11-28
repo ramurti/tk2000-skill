@@ -309,9 +309,14 @@ unidades na versão TK2000). Aprendido:
 - **Teclado sem latch**: uma camada que só varre a matriz a cada N leituras perde toques rápidos quando o jogo
   passa a ler menos vezes por segundo (a música dobrou o quadro): force a varredura onde o código novo gasta o
   tempo.
+- **Um laço de espera é som de graça**: a corrida no tubo do Sky Fox esperava ~93% de cada quadro num laço
+  `dey/dex` que encurta (a nave acelera); trocado por um som que faz o mesmo (o contador, o carry de saída) e gasta
+  o mesmo tempo, a corrida não muda de ritmo. Conte os ciclos dos dois no py65 para cada valor do contador (o
+  chiado custa mais quando o cone troca: calibre a média ponderada pelo tempo) e confira a duração no emulador.
 - **Espaço**: o código que só roda com a placa (o tratador de interrupção, o caminho "placa achada") nunca roda
   no TK2000 e é o lugar natural do som novo; zeros no fim de um pacote também servem, conferindo que nada
-  escreve ali.
+  escreve ali; num pacote que muda de endereço no TK2000, monte no endereço do TK2000 (a troca de código entra
+  depois da realocação) e divida o código entre dois lugares se não couber.
 
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 

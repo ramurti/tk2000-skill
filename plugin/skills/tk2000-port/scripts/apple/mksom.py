@@ -2,7 +2,8 @@
 """Monta os sons refeitos do TK2000: a turbina (src/tksom.s em $6A93, no lugar do tratador da Mockingboard
 do t7; src/tksom-tab.inc, as tabelas para a taxa de amostras medida; build/tk/tksom.bin) e a música do
 título (src/tkmus.s em $DD80, no fim do t25; src/tkmus-tab.inc, as notas; build/tk/tkmus.bin) e os
-estalinhos do voo (src/tkestalo.s em $6A19, no caminho da Mockingboard do t7; build/tk/tkestalo.bin).
+estalinhos do voo (src/tkestalo.s em $6A19, no caminho da Mockingboard do t7; build/tk/tkestalo.bin) e o
+"zuuum" da corrida no tubo (src/tkzuum.s no fim do t22, $4FB2 no TK2000, e src/tkzuumr.s em $6A53).
 
     mksom.py [AMOSTRAS_POR_SEGUNDO]
 
@@ -91,4 +92,6 @@ if __name__ == '__main__':
     monta()
     tab_musica()
     monta('tkmus', MUS_AT, MUS_END)
-    monta('tkestalo', 0x6A19, 0x6A90)      # os estalinhos do voo: no caminho da Mockingboard do t7
+    monta('tkestalo', 0x6A19, 0x6A53)      # os estalinhos do voo: no caminho da Mockingboard do t7
+    monta('tkzuumr', 0x6A53, 0x6A90)       # o "zuuum" da corrida no tubo: a volta do chiado, logo depois
+    monta('tkzuum', 0x4FB2, 0x5000)        # e o resto no fim do t22 ($AFB2 no Apple)
