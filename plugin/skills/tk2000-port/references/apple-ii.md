@@ -283,6 +283,36 @@ unidades na versão TK2000). Aprendido:
 - **Um rastreio novo pode mexer no que já estava conferido**: limite-o às unidades do defeito (no Sky Fox,
   `mkcores.SO`) e compare as telas lado a lado de antes e de depois, ponto a ponto, em todos os caminhos.
 
+### 9.7 Sons: a Mockingboard no alto-falante (Sky Fox, nov/2026)
+
+- **Meça os dois originais**: com e sem a placa o jogo pode soar completamente diferente (o Sky Fox sem placa
+  chia no voo; com a placa o voo é quase mudo, e a música do título e a turbina só existem nela). Para ouvir a
+  placa: emule-a no py65 (`sfmb.py`; a detecção lê o contador do temporizador 1 duas vezes e espera que ele
+  tenha descido, então ele tem de correr mesmo sem ninguém tê-lo ligado) e toque o registro dos AY (`ay.py`);
+  confira com o WAV do AppleWin (`awrun.py --mb`; no sa2 sem áudio o driver `dummy` do SDL só abre um
+  dispositivo: desligue o alto-falante e grave antes de esperar a trava do áudio, `applewin-key.patch`).
+- **Uma voz de 6**: tire a nota mais aguda tocando a cada momento; a melodia de uma voz só costuma trocar de
+  voz no meio da música (pegar uma voz fixa caiu no baixo aos 14 s). Onde a música vira acompanhamento rápido
+  a voz mais alta fica feia: ofereça só um trecho (o tema) repetindo.
+- **O processador é o som**: o TK2000 só soa enquanto o código liga e desliga o cone. Ache onde o jogo espera
+  (um laço de leitura do FIRE chamado ~4.850 vezes por segundo deu a turbina: uma amostra por chamada, volume
+  pela largura do pulso, ruído por LFSR) e meça o custo: as esperas ficaram ~4,4 vezes mais lentas e as
+  contagens delas foram divididas para o texto piscar no tempo do Apple; o lockstep atravessa a espera inteira
+  até uma das saídas (trechos com várias saídas).
+- **Sem espera nenhuma** (a abertura desenhava sem folga): toque uma fatia de cada quadro e adiante o relógio
+  da música pelo tempo do desenho medido; a música sai picotada mas no andamento, e a animação fica mais lenta.
+  Mostre prévias de fatias diferentes (1/3, 1/2, 2/3) com o número de quadros por segundo de cada uma. Uma
+  abertura que conta quadros fica mais longa: toque a música poucas vezes e depois devolva o processador.
+- **O TK2000 não tem relógio**: contar chamadas do motor de som como tempo falha quando o ritmo delas varia
+  (de ~30 a ~350 por segundo no voo do Sky Fox): a regra "30 ms sem clique" virou 27 estalos em vez de 55.
+  Simule a regra implementada sobre os cliques do original e deixe o dono do projeto ouvir antes de fechar.
+- **Teclado sem latch**: uma camada que só varre a matriz a cada N leituras perde toques rápidos quando o jogo
+  passa a ler menos vezes por segundo (a música dobrou o quadro): force a varredura onde o código novo gasta o
+  tempo.
+- **Espaço**: o código que só roda com a placa (o tratador de interrupção, o caminho "placa achada") nunca roda
+  no TK2000 e é o lugar natural do som novo; zeros no fim de um pacote também servem, conferindo que nada
+  escreve ali.
+
 ## 16. Lições do porte do Kung Fu Master (`kungfu-tk2000`, nov/2026)
 
 O primeiro porte de Apple II (§9): um disco DOS 3.3 crackeado, o código original rodando sem

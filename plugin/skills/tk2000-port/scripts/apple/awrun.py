@@ -16,7 +16,7 @@ sa2 com o /api/key (branch tk2000-tools do clone do AppleWin: references/apple-i
 
 OUTDIR/shot-NNN.png (página 1 | página 2, barra amarela na mostrada), com --mem OUTDIR/mem-NNN.bin
 ($0000-$BFFF + a visão da CPU de $D000-$FFFF), OUTDIR/log.txt (ciclo, PC, página),
-OUTDIR/speaker.wav com --wav. Usa um applewin.yaml próprio em OUTDIR (não mexe no ~/.config).
+OUTDIR/speaker.wav com --wav; --mb: Mockingboard no slot 4 e OUTDIR/mb.wav. Usa um applewin.yaml próprio em OUTDIR (não mexe no ~/.config).
 """
 import json, os, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
 sys.path.insert(0, os.path.dirname(__file__))
@@ -81,11 +81,14 @@ def main():
            '-r', 'Configuration.Apple2 Type=1', '--d1', dsk]
     if state:
         cmd += ['--load-state', state]
-    cmd += ['--wav-speaker', os.path.join(out, 'speaker.wav')] if wav else ['--no-audio']
-    p = subprocess.Popen(cmd, stdout=open(os.path.join(out, 'sa2.log'), 'w'), stderr=subprocess.STDOUT)
+    cmd += ['--wav-speaker', os.path.join(out, 'speaker.wav')] if wav else [] if '--mb' in a else ['--no-audio']
+    if '--mb' in a:                                            # Mockingboard no slot 4, a saída dela em mb.wav
+        cmd += ['-r', 'Configuration.Enhance Disk Speed=0', '-r', 'Configuration\\Slot 4.Card type=3', '--wav-mockingboard', os.path.join(out, 'mb.wav')]
+    env = dict(os.environ, SDL_AUDIODRIVER='dummy', SA2_SO_MOCKINGBOARD='1') if '--mb' in a else None   # áudio mudo só para a placa (sa2 do tk2000-tools)
+    p = subprocess.Popen(cmd, env=env, stdout=open(os.path.join(out, 'sa2.log'), 'w'), stderr=subprocess.STDOUT)
     log = open(os.path.join(out, 'log.txt'), 'w')
     try:
-        for _ in range(50):
+        for _ in range(300):                                   # (com a Mockingboard o servidor às vezes demora a subir)
             try:
                 get(64501, '/api/info'); break
             except Exception:

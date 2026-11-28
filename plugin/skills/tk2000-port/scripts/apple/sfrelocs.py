@@ -119,6 +119,48 @@ INPUT = {                               # unidade: [(endereço da instrução, E
 }
 _JSR = lambda a: bytes([0x20, a & 0xFF, a >> 8])   # noqa: E731
 _JMP = lambda a: bytes([0x4C, a & 0xFF, a >> 8])   # noqa: E731
+# os sons refeitos no alto-falante (src/tksom.s, tools/mksom.py): no lugar do tratador de interrupção da
+# Mockingboard do t7 ($6A93-$6B19, nunca roda sem a placa); a turbina na tela "Prepare To Launch" do t21
+# (opção B do dono do projeto): TURB0 no começo da tela, TURB no lugar das leituras do FIRE nos laços de espera
+_ts = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'build', 'tk', 'tksom.bin')
+if _os.path.exists(_ts):
+    SOM = open(_ts, 'rb').read()
+    TURB0, TURB = 0x6A93, 0x6AA0
+    CODE['t7'][0x6A93] = (_track(7)[0xA93:0xA93 + len(SOM)], SOM)
+    CODE['t21'] = {0x7516: (b'\xA9\x06\x85\x30', _JSR(TURB0) + b'\xEA'),   # lda #$06 / sta $30 -> jsr TURB0 / nop
+                   0x7521: (_JSR(0x7772), _JSR(TURB)),                     # Prepare To Launch: as duas esperas
+                   0x7533: (_JSR(0x7772), _JSR(TURB)),
+                   0x7508: (_JSR(0x7772), _JSR(TURB)),                     # a escolha da altitude
+                   # cada volta das esperas custa ~4,4 vezes mais que no Apple (a leitura do FIRE da camada e
+                   # uma amostra da turbina): as contagens divididas por 4, o texto pisca no tempo do Apple
+                   0x751E: (b'\x10', b'\x04'), 0x7530: (b'\x14', b'\x05')}
+    # para o lockstep: as duas esperas atravessadas inteiras, até uma das saídas (o fim da contagem ou o FIRE)
+    SPANS_SOM = {0x7521: ((0x752C, 0x7549), 'xy'), 0x7533: ((0x753E, 0x7546), 'xy')}   # X, Y: as contagens
+else:
+    SPANS_SOM = {}
+# a música do título (src/tkmus.s, opção A do dono do projeto): no fim do t25 ($DD80, zeros no disco); a entrada
+# $D006 (jmp $D15F, chamada uma vez por quadro da abertura) passa por MUS, que toca metade de cada quadro
+_tm = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'build', 'tk', 'tkmus.bin')
+if _os.path.exists(_tm):
+    MUSB = open(_tm, 'rb').read()
+    CODE.setdefault('t25', {})
+    CODE['t25'][0xDD80] = (_track(25)[0xD80:0xD80 + len(MUSB)], MUSB)
+    CODE['t25'][0xD006] = (_JMP(0xD15F), _JMP(0xDD80))
+    SPANS_SOM[0xD006] = ((0xD15F,), 'xy')     # o lockstep atravessa a música (X e Y voltam como estavam)
+# os estalinhos do voo (src/tkestalo.s, escolha do dono do projeto): no caminho da Mockingboard do t7 ($6A19-$6A8F,
+# só roda com a placa); o tique do motor de som (r40 $45F8, jmp $6BA5) passa por TICK, que conta os tiques; os dois
+# cliques do motor ($6BB0, $6BD5: bit $C030) viram jsr ESTAL: um estalo de 4 cliques no começo de cada rajada
+_te = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'build', 'tk', 'tkestalo.bin')
+if _os.path.exists(_te):
+    ESTB = open(_te, 'rb').read()
+    TICK, ESTAL = 0x6A19, 0x6A24          # conferir em build/tk/tkestalo.lst
+    CODE['t7'][0x6A19] = (_track(7)[0xA19:0xA19 + len(ESTB)], ESTB)
+    CODE['t7'][0x6BB0] = (b'\x2C\x30\xC0', _JSR(ESTAL))
+    CODE['t7'][0x6BD5] = (b'\x2C\x30\xC0', _JSR(ESTAL))
+    CODE['r40'][0x45F8] = (_JMP(0x6BA5), _JMP(TICK))
+    SPANS_SOM.update({0x45F8: ((0x6BA5,), 'p'), 0x6BB0: (0x6BB3, 'p'), 0x6BD5: (0x6BD8, 'p')})
+
+
 INCODE = {                              # trocas de instrução da entrada
     'r40': {0x5378: (b'\x2C\x10\xC0', _JSR(KCLR))},   # bit $C010 -> jsr KCLR
     't32': {0xEBA0: (b'\x2C\x10\xC0', _JSR(KCLR))},
@@ -132,6 +174,7 @@ INCODE = {                              # trocas de instrução da entrada
 # para o lockstep: trechos trocados com outro fim (endereço do Apple) e os registradores a igualar
 SPANS = {0x894A: (0x896A, 'xy'), 0xD363: (0xD383, 'xy'), 0xB020: (0xB030, 'ay')}
 SPANS.update({a: (a + 3, 'ap') for d in INPUT.values() for a, io in d})   # as leituras viradas jsr
+SPANS.update(SPANS_SOM)
 
 HOLES = {
     't32': (0xEA00, 0xF000),            # $EA00-$EBFF: os 64 buracos da página 2, copiados de volta no Restart

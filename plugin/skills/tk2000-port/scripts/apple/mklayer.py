@@ -16,7 +16,7 @@ def main():
     out = os.path.join(ROOT, 'build', 'tk')
     os.makedirs(out, exist_ok=True)
     o, b = os.path.join(out, 'layer.o'), os.path.join(out, 'layer.bin')
-    subprocess.run(['ca65', os.path.join(ROOT, 'src', 'tklayer.s'), '-o', o,
+    subprocess.run(['ca65', os.path.join(ROOT, 'src', 'tklayer.s'), '-I', os.path.join(ROOT, 'src'), '-o', o,
                     '-l', os.path.join(out, 'layer.lst')], check=True)
     subprocess.run(['ld65', '-C', os.path.join(ROOT, 'src', 'dis', 'raw.cfg'), o, '-o', b], check=True)
     d = bytearray(open(b, 'rb').read())

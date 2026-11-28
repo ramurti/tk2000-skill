@@ -1,3 +1,42 @@
+diff --git a/source/MockingboardCardManager.cpp b/source/MockingboardCardManager.cpp
+index ba2b7ce1..fae34dce 100644
+--- a/source/MockingboardCardManager.cpp
++++ b/source/MockingboardCardManager.cpp
+@@ -442,6 +442,9 @@ void MockingboardCardManager::MixAllAndCopyToRingBuffer(UINT nNumSamples)
+ 
+ 	//
+ 
++	if (m_outputToRiff)		// tk2000-tools: grava o WAV mesmo sem dispositivo de áudio (sa2 --headless)
++		RiffPutSamples(&m_mixBuffer[0], nNumSamples);
++
+ 	DWORD dwDSLockedBufferSize0, dwDSLockedBufferSize1;
+ 	SHORT* pDSLockedBuffer0, * pDSLockedBuffer1;
+ 
+@@ -461,7 +464,4 @@ void MockingboardCardManager::MixAllAndCopyToRingBuffer(UINT nNumSamples)
+ 		(void*)pDSLockedBuffer1, dwDSLockedBufferSize1);
+ 
+ 	m_byteOffset = (m_byteOffset + (uint32_t)nNumSamples * sizeof(short) * MockingboardCard::NUM_MB_CHANNELS) % SOUNDBUFFER_SIZE;
+-
+-	if (m_outputToRiff)
+-		RiffPutSamples(&m_mixBuffer[0], nNumSamples);
+ }
+diff --git a/source/Speaker.cpp b/source/Speaker.cpp
+index a9c55ffa..cfb849d6 100644
+--- a/source/Speaker.cpp
++++ b/source/Speaker.cpp
+@@ -960,6 +960,12 @@ bool Spkr_DSInit()
+ 
+ 	SpeakerVoice.bIsSpeaker = true;
+ 
++	if (getenv("SA2_SO_MOCKINGBOARD"))	// tk2000-tools: o único dispositivo de áudio (SDL dummy) fica para a Mockingboard
++	{
++		LogFileOutput("Spkr_DSInit: SA2_SO_MOCKINGBOARD\n");
++		return false;
++	}
++
+ 	HRESULT hr = DSGetSoundBuffer(&SpeakerVoice, g_dwDSSpkrBufferSize, SPKR_SAMPLE_RATE, g_nSPKR_NumChannels, "Spkr");
+ 	if (FAILED(hr))
+ 	{
 diff --git a/source/debugserver/InfoProvider.h b/source/debugserver/InfoProvider.h
 index ca1ddb95..f34489f8 100644
 --- a/source/debugserver/InfoProvider.h

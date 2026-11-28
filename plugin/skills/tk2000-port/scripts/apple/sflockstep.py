@@ -530,15 +530,22 @@ def main():
         pt.ram[sfrelocs.BTN1] = 0x80 if ao.btn[1] else 0
         if mo.pc in spans and spanok(mo.pc):            # atravessa o trecho trocado nos dois
             e, sync = spans[mo.pc]
+            ends = e if isinstance(e, tuple) else (e,)     # um laço com contagem diferente: as saídas dele
             s0, n0 = mo.pc, 0
-            while mo.pc != e:
+            while mo.pc not in ends:
                 mo.step()
                 n0 += 1
-                if n0 == 2000000:
-                    print('trecho $%04X-$%04X: o original não chega ao fim (em $%04X)' % (s0, e, mo.pc))
+                if n0 == 4000000:
+                    print('trecho $%04X: o original não chega ao fim (em $%04X)' % (s0, mo.pc))
                     return 1
+            e = mo.pc
+            n0 = 0
             while mp.pc != pcmap(e):
                 mp.step()
+                n0 += 1
+                if n0 == 4000000:
+                    print('trecho $%04X: o porte não sai por $%04X (em $%04X)' % (s0, e, mp.pc))
+                    return 1
             for r in sync:
                 setattr(mp, r, getattr(mo, r))
             mp.processorCycles = mo.processorCycles
