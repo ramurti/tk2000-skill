@@ -57,7 +57,9 @@ Técnica usada pelas fitas comerciais, implementada no `mkct2.py`:
 - **Tela de carga de graça:** ponha uma imagem hi-res no início de um arquivo da fita carregado
   em `$2000`: ela aparece linha a linha enquanto o resto carrega (o Karateka faz isso). Faça o
   carregador passar para cor antes (`STA $C050`; a ROM deixa o vídeo em mono depois do
-  `LOADT`).
+  `LOADT`). No disco é igual: depois do `CALL 49408` o vídeo está em mono; ligue as cores no começo
+  do carregador de boot, não no fim (o Sky Fox mostrava o logotipo listrado em mono por ~5 s
+  enquanto a memória do jogo carregava). Apagar a página 1 antes tira a tela da ROM.
 - **A ROM escreve a sua linha de status da fita** ("RIVER 0C 08 WAIT: OK") nas linhas 184-191 da
   página 1 durante o `LOADT`: mantenha o conteúdo da tela de carga acima da linha 184 e limpe
   essas linhas quando o programa começar.
